@@ -22,6 +22,8 @@ public static class IdentityErrors
                 new BadRequestException("Korisničko ime sadrži nedozvoljene znakove."),
             nameof(IdentityErrorDescriber.PasswordTooShort) =>
                 new BadRequestException("Lozinka je prekratka (najmanje 4 znaka)."),
+            nameof(IdentityErrorDescriber.InvalidToken) =>
+                new BadRequestException("Kod nije ispravan ili je istekao."),
             nameof(IdentityErrorDescriber.PasswordMismatch) =>
                 new BadRequestException("Trenutna lozinka nije ispravna."),
             _ => new BadRequestException(string.Join(" ", result.Errors.Select(e => e.Description)))

@@ -25,6 +25,22 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordDto dto)
+    {
+        await _authService.ForgotPasswordAsync(dto);
+        return NoContent();
+    }
+
+    [AllowAnonymous]
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword(ResetPasswordDto dto)
+    {
+        await _authService.ResetPasswordAsync(dto);
+        return NoContent();
+    }
+
+    [AllowAnonymous]
     [HttpPost("register")]
     public async Task<ActionResult<LoginResponseDto>> Register(RegisterDto dto)
     {

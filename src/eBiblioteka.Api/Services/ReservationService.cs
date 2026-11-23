@@ -154,11 +154,12 @@ public class ReservationService : IReservationService
         reservation.PickupDeadline = DateTime.UtcNow.AddDays(LibraryRules.PickupDays);
         AddHistory(reservation, ReservationStatus.Pending, ReservationStatus.Confirmed, adminId, null);
 
-        _notifications.Add(reservation.UserId, "Rezervacija potvrđena",
+        _notifications.AddWithEmail(reservation.UserId, "Rezervacija potvrđena",
             $"Knjiga \"{book.Title}\" čeka vas do {reservation.PickupDeadline:dd.MM.yyyy}.");
 
         await _db.SaveChangesAsync();
         await transaction.CommitAsync();
+        await _notifications.SendPendingEmailsAsync();
 
         _logger.LogInformation("Rezervacija {ReservationId} potvrđena (bibliotekar {AdminId})", id, adminId);
 
@@ -196,11 +197,12 @@ public class ReservationService : IReservationService
 
         if (isAdmin)
         {
-            _notifications.Add(reservation.UserId, "Rezervacija otkazana",
+            _notifications.AddWithEmail(reservation.UserId, "Rezervacija otkazana",
                 $"Rezervacija knjige \"{reservation.Book.Title}\" je otkazana. Razlog: {trimmedReason}");
         }
 
         await _db.SaveChangesAsync();
+        await _notifications.SendPendingEmailsAsync();
 
         _logger.LogInformation("Rezervacija {ReservationId} otkazana (korisnik {ActorId}, admin: {IsAdmin})",
             id, actorId, isAdmin);

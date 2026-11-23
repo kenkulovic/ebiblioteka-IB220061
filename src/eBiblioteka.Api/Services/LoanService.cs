@@ -178,7 +178,7 @@ public class LoanService : ILoanService
                 CreatedAt = returnDate
             });
 
-            _notifications.Add(loan.UserId, "Zakasnina",
+            _notifications.AddWithEmail(loan.UserId, "Zakasnina",
                 $"Knjiga \"{loan.Book.Title}\" vraćena je s kašnjenjem od {daysLate} dana. Zakasnina: {amount:0.00} KM.");
         }
         else
@@ -189,6 +189,7 @@ public class LoanService : ILoanService
 
         // Posudba i zakasnina se snimaju zajedno, u jednoj transakciji.
         await _db.SaveChangesAsync();
+        await _notifications.SendPendingEmailsAsync();
 
         _logger.LogInformation("Vraćena posudba {LoanId} (bibliotekar {AdminId}), kašnjenje {DaysLate} dana, zakasnina {Amount}",
             loanId, adminId, daysLate, amount);

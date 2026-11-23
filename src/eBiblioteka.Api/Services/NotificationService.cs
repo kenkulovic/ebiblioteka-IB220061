@@ -3,6 +3,8 @@ using eBiblioteka.Api.Data.Entities;
 using eBiblioteka.Api.Dtos;
 using eBiblioteka.Api.Exceptions;
 using eBiblioteka.Api.Extensions;
+using eBiblioteka.Api.Services.Email;
+using eBiblioteka.Shared.Messaging;
 using Microsoft.EntityFrameworkCore;
 
 namespace eBiblioteka.Api.Services;
@@ -10,10 +12,13 @@ namespace eBiblioteka.Api.Services;
 public class NotificationService : INotificationService
 {
     private readonly AppDbContext _db;
+    private readonly IEmailQueue _emailQueue;
+    private readonly List<(int UserId, string Title, string Text)> _pendingEmails = new();
 
-    public NotificationService(AppDbContext db)
+    public NotificationService(AppDbContext db, IEmailQueue emailQueue)
     {
         _db = db;
+        _emailQueue = emailQueue;
     }
 
     public void Add(int userId, string title, string text)
@@ -25,6 +30,40 @@ public class NotificationService : INotificationService
             Text = text,
             CreatedAt = DateTime.UtcNow
         });
+    }
+
+    public void AddWithEmail(int userId, string title, string text)
+    {
+        Add(userId, title, text);
+        _pendingEmails.Add((userId, title, text));
+    }
+
+    public async Task SendPendingEmailsAsync()
+    {
+        if (_pendingEmails.Count == 0)
+        {
+            return;
+        }
+
+        var pending = _pendingEmails.ToList();
+        _pendingEmails.Clear();
+
+        var userIds = pending.Select(p => p.UserId).Distinct().ToList();
+        var recipients = await _db.Users.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id) && u.Email != null)
+            .Select(u => new { u.Id, u.Email, u.FirstName })
+            .ToDictionaryAsync(u => u.Id);
+
+        foreach (var (userId, title, text) in pending)
+        {
+            if (!recipients.TryGetValue(userId, out var recipient))
+            {
+                continue;
+            }
+
+            var body = $"Poštovani/a {recipient.FirstName},\n\n{text}\n\neBiblioteka";
+            await _emailQueue.EnqueueAsync(new EmailMessage(recipient.Email!, $"eBiblioteka: {title}", body));
+        }
     }
 
     public async Task<PagedResultDto<NotificationDto>> GetMineAsync(int userId, NotificationQueryDto query)

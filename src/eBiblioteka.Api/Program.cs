@@ -7,7 +7,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
 using eBiblioteka.Api.Services;
+using eBiblioteka.Api.Services.Email;
 using eBiblioteka.Api.Services.PayPal;
+using eBiblioteka.Shared.Messaging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 // NoClobber: prave varijable okruženja (npr. iz Dockera) imaju prednost nad .env fajlom.
@@ -32,9 +34,13 @@ builder.Services
         options.Password.RequireUppercase = false;
         options.Password.RequireNonAlphanumeric = false;
         options.User.RequireUniqueEmail = true;
+
+        // Reset lozinke koristi kratak numerički kod (lako se prepisuje iz e-maila u aplikaciju).
+        options.Tokens.PasswordResetTokenProvider = TokenOptions.DefaultEmailProvider;
     })
     .AddRoles<IdentityRole<int>>()
-    .AddEntityFrameworkStores<AppDbContext>();
+    .AddEntityFrameworkStores<AppDbContext>()
+    .AddDefaultTokenProviders();
 
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -49,6 +55,8 @@ builder.Services.AddScoped<IMemberEligibilityService, MemberEligibilityService>(
 builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<ILoanService, LoanService>();
 builder.Services.AddScoped<IFineService, FineService>();
+builder.Services.AddSingleton(RabbitMqSettings.FromEnvironment());
+builder.Services.AddSingleton<IEmailQueue, RabbitMqEmailQueue>();
 builder.Services.AddSingleton(PayPalOptions.FromEnvironment());
 builder.Services.AddHttpClient<IPayPalClient, PayPalClient>(client =>
     client.Timeout = TimeSpan.FromSeconds(30));

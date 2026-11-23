@@ -173,12 +173,13 @@ public class PaymentService : IPaymentService
                 .SetProperty(f => f.Status, FineStatus.Paid)
                 .SetProperty(f => f.PaidAt, (DateTime?)now));
 
-        _notifications.Add(payment.Fine.UserId, "Zakasnina plaćena",
+        _notifications.AddWithEmail(payment.Fine.UserId, "Zakasnina plaćena",
             $"Uplata od {capture.AmountEur:0.00} EUR ({payment.AmountKm:0.00} KM) za knjigu " +
             $"\"{payment.Fine.Loan.Book.Title}\" je uspješno primljena.");
         await _db.SaveChangesAsync();
 
         await transaction.CommitAsync();
+        await _notifications.SendPendingEmailsAsync();
 
         _logger.LogInformation("Uplata {PaymentId} završena, capture {CaptureId}, {AmountEur} EUR",
             paymentId, capture.CaptureId, capture.AmountEur);
@@ -262,12 +263,13 @@ public class PaymentService : IPaymentService
             .Where(f => f.Id == payment.FineId && f.Status == FineStatus.Paid)
             .ExecuteUpdateAsync(s => s.SetProperty(f => f.Status, FineStatus.Cancelled));
 
-        _notifications.Add(payment.Fine.UserId, "Povrat uplate",
+        _notifications.AddWithEmail(payment.Fine.UserId, "Povrat uplate",
             $"Vraćeno vam je {refundAmount:0.00} EUR za zakasninu za knjigu " +
             $"\"{payment.Fine.Loan.Book.Title}\". Razlog: {trimmedReason}");
         await _db.SaveChangesAsync();
 
         await transaction.CommitAsync();
+        await _notifications.SendPendingEmailsAsync();
 
         _logger.LogInformation(
             "Povrat uplate {PaymentId}: {Amount} EUR, PayPal povrat {RefundId} ({Status}), bibliotekar {AdminId}",

@@ -69,11 +69,12 @@ public class FineService : IFineService
             CompletedAt = now
         });
 
-        _notifications.Add(fine.UserId, "Zakasnina plaćena",
+        _notifications.AddWithEmail(fine.UserId, "Zakasnina plaćena",
             $"Evidentirana je uplata zakasnine od {fine.Amount:0.00} KM za knjigu \"{fine.Loan.Book.Title}\".");
 
         // Zakasnina i uplata se snimaju zajedno.
         await _db.SaveChangesAsync();
+        await _notifications.SendPendingEmailsAsync();
 
         _logger.LogInformation("Zakasnina {FineId} plaćena na šalteru (bibliotekar {AdminId})", fineId, adminId);
 
