@@ -149,6 +149,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
             e.Property(x => x.PayPalCaptureId).HasMaxLength(64);
             e.Property(x => x.RefundReason).HasMaxLength(500);
             e.HasIndex(x => x.PayPalOrderId);
+
+            // Zakasnina ne može imati dvije otvorene (Pending) ili završene (Completed) uplate:
+            // zaštita od dvostrukog plaćanja na nivou baze.
+            e.HasIndex(x => x.FineId)
+                .IsUnique()
+                .HasFilter($"[Status] IN ({(int)PaymentStatus.Pending}, {(int)PaymentStatus.Completed})");
         });
 
         b.Entity<News>(e =>

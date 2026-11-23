@@ -120,6 +120,7 @@ public class FineService : IFineService
                 BookHasCover = f.Loan.Book.CoverImage != null,
                 UserId = f.UserId,
                 UserFullName = f.User.FirstName + " " + f.User.LastName,
+                HasPendingPayment = f.Payments.Any(p => p.Status == PaymentStatus.Pending),
                 PaymentMethod = f.Payments
                     .Where(p => p.Status == PaymentStatus.Completed)
                     .OrderByDescending(p => p.CreatedAt)

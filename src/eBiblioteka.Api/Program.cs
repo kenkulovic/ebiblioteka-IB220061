@@ -7,9 +7,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
 using eBiblioteka.Api.Services;
+using eBiblioteka.Api.Services.PayPal;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-DotNetEnv.Env.TraversePath().Load();
+// NoClobber: prave varijable okruženja (npr. iz Dockera) imaju prednost nad .env fajlom.
+DotNetEnv.Env.NoClobber().TraversePath().Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,6 +49,10 @@ builder.Services.AddScoped<IMemberEligibilityService, MemberEligibilityService>(
 builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<ILoanService, LoanService>();
 builder.Services.AddScoped<IFineService, FineService>();
+builder.Services.AddSingleton(PayPalOptions.FromEnvironment());
+builder.Services.AddHttpClient<IPayPalClient, PayPalClient>(client =>
+    client.Timeout = TimeSpan.FromSeconds(30));
+builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IMemberService, MemberService>();
 builder.Services.AddHostedService<ReservationExpirationJob>();

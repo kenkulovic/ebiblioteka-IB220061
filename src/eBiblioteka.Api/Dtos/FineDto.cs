@@ -18,4 +18,5 @@ public class FineDto
     public int UserId { get; set; }
     public string UserFullName { get; set; } = string.Empty;
     public PaymentMethod? PaymentMethod { get; set; }
+    public bool HasPendingPayment { get; set; }
 }

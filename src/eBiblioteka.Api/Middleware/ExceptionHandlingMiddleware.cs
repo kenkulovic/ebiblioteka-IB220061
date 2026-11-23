@@ -41,12 +41,14 @@ public class ExceptionHandlingMiddleware
             ForbiddenException => (StatusCodes.Status403Forbidden, ex.Message),
             NotFoundException => (StatusCodes.Status404NotFound, ex.Message),
             ConflictException => (StatusCodes.Status409Conflict, ex.Message),
+            PaymentProviderException => (StatusCodes.Status502BadGateway,
+                "Usluga plaćanja trenutno nije dostupna. Pokušajte kasnije."),
             DbUpdateException { InnerException: SqlException sql } when IsConstraintViolation(sql) =>
                 (StatusCodes.Status409Conflict, "Radnja nije dozvoljena jer krši pravila integriteta podataka (zapis se koristi ili već postoji)."),
             _ => (StatusCodes.Status500InternalServerError, "Došlo je do greške na serveru.")
         };
 
-        if (status == StatusCodes.Status500InternalServerError)
+        if (status >= StatusCodes.Status500InternalServerError)
         {
             _logger.LogError(ex, "Neobrađena greška pri obradi zahtjeva {Method} {Path}",
                 context.Request.Method, context.Request.Path);

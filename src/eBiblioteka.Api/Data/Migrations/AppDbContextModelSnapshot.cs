@@ -653,7 +653,9 @@ namespace eBiblioteka.Api.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("FineId");
+                    b.HasIndex("FineId")
+                        .IsUnique()
+                        .HasFilter("[Status] IN (1, 2)");
 
                     b.HasIndex("PayPalOrderId");
 
