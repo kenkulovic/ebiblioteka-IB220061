@@ -22,7 +22,7 @@ public static class ReportPdfGenerator
         foreach (var file in new[] { "DejaVuSans.ttf", "DejaVuSans-Bold.ttf" })
         {
             using var stream = File.OpenRead(Path.Combine(fontDirectory, file));
-            FontManager.RegisterFont(stream);
+            FontManager.RegisterFontFromStream(stream);
         }
     }
 

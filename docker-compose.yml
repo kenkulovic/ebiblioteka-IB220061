@@ -1,3 +1,7 @@
+# Pokretanje cijelog sistema: docker compose up -d --build
+# Sve postavke se citaju iz .env (jedno mjesto). Adrese servisa unutar Docker mreze
+# (db, rabbitmq, mailpit) postavljene su ispod u "environment" i imaju prednost nad .env.
+
 services:
   db:
     image: mcr.microsoft.com/mssql/server:2022-CU20-ubuntu-22.04
@@ -7,6 +11,12 @@ services:
       MSSQL_SA_PASSWORD: ${DB_PASSWORD}
     ports:
       - "${DB_PORT}:1433"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -b -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     volumes:
       - ebiblioteka-db-data:/var/opt/mssql
 
@@ -34,6 +44,44 @@ services:
     ports:
       - "${SMTP_PORT}:1025"
       - "${SMTP_WEB_PORT}:8025"
+
+  api:
+    build:
+      context: ./src
+      dockerfile: eBiblioteka.Api/Dockerfile
+    image: ebiblioteka-api:1.0.0
+    container_name: ebiblioteka-api
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PORT: "1433"
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+    ports:
+      - "${API_PORT}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./src
+      dockerfile: eBiblioteka.Worker/Dockerfile
+    image: ebiblioteka-worker:1.0.0
+    container_name: ebiblioteka-worker
+    env_file: .env
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
 
 volumes:
   ebiblioteka-db-data:

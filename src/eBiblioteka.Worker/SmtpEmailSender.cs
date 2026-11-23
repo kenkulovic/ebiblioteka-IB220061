@@ -33,7 +33,7 @@ public class SmtpEmailSender : IEmailSender
 
         if (_settings.User != null)
         {
-            await client.AuthenticateAsync(_settings.User, _settings.Password, cancellationToken);
+            await client.AuthenticateAsync(_settings.User, _settings.Password ?? string.Empty, cancellationToken);
         }
 
         await client.SendAsync(mime, cancellationToken);
