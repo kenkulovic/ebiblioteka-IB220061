@@ -17,6 +17,7 @@ public static partial class DbSeeder
         await SeedUsersAsync(services, db);
         await SeedCatalogAsync(db);
         await SeedActivityAsync(db);
+        await SeedNewsAsync(db);
     }
 
     private static async Task SeedUsersAsync(IServiceProvider services, AppDbContext db)

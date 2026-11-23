@@ -64,6 +64,8 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IMemberService, MemberService>();
 builder.Services.AddScoped<IRecommendationService, RecommendationService>();
+builder.Services.AddScoped<INewsService, NewsService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddHostedService<ReservationExpirationJob>();
 builder.Services.AddHostedService<SimilarityRecalculationJob>();
 
