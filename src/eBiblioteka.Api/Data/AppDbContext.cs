@@ -29,6 +29,14 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<BookSimilarity> BookSimilarities => Set<BookSimilarity>();
 
+    // SQL Server ne pamti vremensku zonu, pa se svaki datum pri čitanju označava kao UTC.
+    // Tako se u JSON-u šalje s oznakom "Z" i klijenti ga ispravno pretvaraju u lokalno vrijeme.
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+        configurationBuilder.Properties<DateTime?>().HaveConversion<NullableUtcDateTimeConverter>();
+    }
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);

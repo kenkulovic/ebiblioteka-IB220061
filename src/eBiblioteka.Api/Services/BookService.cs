@@ -176,7 +176,7 @@ public class BookService : IBookService
         await _db.SaveChangesAsync();
     }
 
-    public async Task<BookCoverDto> GetCoverAsync(int id)
+    public async Task<ImageDto> GetCoverAsync(int id)
     {
         var cover = await _db.Books.AsNoTracking()
             .Where(b => b.Id == id)
@@ -188,7 +188,7 @@ public class BookService : IBookService
             throw new NotFoundException("Knjiga nema sliku korica.");
         }
 
-        return new BookCoverDto
+        return new ImageDto
         {
             Data = cover,
             ContentType = ImageFormat.Detect(cover) ?? ImageFormat.Jpeg

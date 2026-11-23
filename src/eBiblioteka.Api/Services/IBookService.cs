@@ -9,7 +9,7 @@ public interface IBookService
     Task<BookDetailsDto> CreateAsync(BookUpsertDto dto);
     Task<BookDetailsDto> UpdateAsync(int id, BookUpsertDto dto);
     Task DeleteAsync(int id);
-    Task<BookCoverDto> GetCoverAsync(int id);
+    Task<ImageDto> GetCoverAsync(int id);
     Task SetCoverAsync(int id, Stream content, long length);
     Task RemoveCoverAsync(int id);
 }

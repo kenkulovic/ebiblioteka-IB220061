@@ -1,6 +1,8 @@
 using eBiblioteka.Api.Data;
 using eBiblioteka.Api.Data.Entities;
+using eBiblioteka.Api.BackgroundJobs;
 using eBiblioteka.Api.Middleware;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
@@ -11,7 +13,9 @@ DotNetEnv.Env.TraversePath().Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -38,6 +42,14 @@ builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IPublisherService, PublisherService>();
 builder.Services.AddScoped<IAuthorService, AuthorService>();
 builder.Services.AddScoped<IBookService, BookService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IMemberEligibilityService, MemberEligibilityService>();
+builder.Services.AddScoped<IReservationService, ReservationService>();
+builder.Services.AddScoped<ILoanService, LoanService>();
+builder.Services.AddScoped<IFineService, FineService>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
+builder.Services.AddScoped<IMemberService, MemberService>();
+builder.Services.AddHostedService<ReservationExpirationJob>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

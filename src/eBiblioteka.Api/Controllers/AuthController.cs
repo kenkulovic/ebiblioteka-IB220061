@@ -23,4 +23,12 @@ public class AuthController : ControllerBase
         var response = await _authService.LoginAsync(request);
         return Ok(response);
     }
+
+    [AllowAnonymous]
+    [HttpPost("register")]
+    public async Task<ActionResult<LoginResponseDto>> Register(RegisterDto dto)
+    {
+        var response = await _authService.RegisterAsync(dto);
+        return Ok(response);
+    }
 }
