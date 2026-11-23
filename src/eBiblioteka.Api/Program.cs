@@ -63,7 +63,9 @@ builder.Services.AddHttpClient<IPayPalClient, PayPalClient>(client =>
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IMemberService, MemberService>();
+builder.Services.AddScoped<IRecommendationService, RecommendationService>();
 builder.Services.AddHostedService<ReservationExpirationJob>();
+builder.Services.AddHostedService<SimilarityRecalculationJob>();
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

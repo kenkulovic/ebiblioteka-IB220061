@@ -16,6 +16,7 @@ public static partial class DbSeeder
         await SeedLookupsAsync(db);
         await SeedUsersAsync(services, db);
         await SeedCatalogAsync(db);
+        await SeedActivityAsync(db);
     }
 
     private static async Task SeedUsersAsync(IServiceProvider services, AppDbContext db)
@@ -28,6 +29,9 @@ public static partial class DbSeeder
         await CreateUserAsync(userManager, "maja", "Maja", "Perić", "CL-000002", cities["Sarajevo"], Roles.Member);
         await CreateUserAsync(userManager, "adnan", "Adnan", "Kovač", "CL-000003", cities["Mostar"], Roles.Member);
         await CreateUserAsync(userManager, "emir", "Emir", "Softić", "CL-000004", cities["Tuzla"], Roles.Member);
+        await CreateUserAsync(userManager, "amra", "Amra", "Begić", "CL-000005", cities["Sarajevo"], Roles.Member);
+        await CreateUserAsync(userManager, "tarik", "Tarik", "Delić", "CL-000006", cities["Banja Luka"], Roles.Member);
+        await CreateUserAsync(userManager, "sara", "Sara", "Marić", "CL-000007", cities["Mostar"], Roles.Member);
     }
 
     private static async Task CreateUserAsync(

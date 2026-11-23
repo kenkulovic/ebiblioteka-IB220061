@@ -50,29 +50,34 @@ public class BookService : IBookService
                 _db.Reservations.Count(r => r.BookId == b.Id && r.Status == ReservationStatus.Confirmed));
         }
 
-        return await books
-            .OrderBy(b => b.Title)
-            .Select(b => new BookListItemDto
-            {
-                Id = b.Id,
-                Title = b.Title,
-                PublishedYear = b.PublishedYear,
-                CategoryId = b.CategoryId,
-                CategoryName = b.Category.Name,
-                Authors = b.BookAuthors
-                    .Select(ba => ba.Author.FirstName + " " + ba.Author.LastName)
-                    .ToList(),
-                TotalCopies = b.TotalCopies,
-                AvailableCopies = b.TotalCopies
-                    - _db.Loans.Count(l => l.BookId == b.Id && l.Status == LoanStatus.Active)
-                    - _db.Reservations.Count(r => r.BookId == b.Id && r.Status == ReservationStatus.Confirmed),
-                AverageRating = _db.Reviews
-                    .Where(r => r.BookId == b.Id)
-                    .Average(r => (double?)r.Rating),
-                HasCover = b.CoverImage != null
-            })
-            .ToPagedAsync(query);
+        return await ProjectToListItem(books.OrderBy(b => b.Title)).ToPagedAsync(query);
     }
+
+    public async Task<List<BookListItemDto>> GetListItemsAsync(IReadOnlyCollection<int> ids)
+    {
+        return await ProjectToListItem(_db.Books.AsNoTracking().Where(b => ids.Contains(b.Id))).ToListAsync();
+    }
+
+    private IQueryable<BookListItemDto> ProjectToListItem(IQueryable<Book> books) =>
+        books.Select(b => new BookListItemDto
+        {
+            Id = b.Id,
+            Title = b.Title,
+            PublishedYear = b.PublishedYear,
+            CategoryId = b.CategoryId,
+            CategoryName = b.Category.Name,
+            Authors = b.BookAuthors
+                .Select(ba => ba.Author.FirstName + " " + ba.Author.LastName)
+                .ToList(),
+            TotalCopies = b.TotalCopies,
+            AvailableCopies = b.TotalCopies
+                - _db.Loans.Count(l => l.BookId == b.Id && l.Status == LoanStatus.Active)
+                - _db.Reservations.Count(r => r.BookId == b.Id && r.Status == ReservationStatus.Confirmed),
+            AverageRating = _db.Reviews
+                .Where(r => r.BookId == b.Id)
+                .Average(r => (double?)r.Rating),
+            HasCover = b.CoverImage != null
+        });
 
     public async Task<BookDetailsDto> GetByIdAsync(int id)
     {

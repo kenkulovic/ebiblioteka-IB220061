@@ -6,6 +6,7 @@ public interface IBookService
 {
     Task<PagedResultDto<BookListItemDto>> GetAsync(BookQueryDto query);
     Task<BookDetailsDto> GetByIdAsync(int id);
+    Task<List<BookListItemDto>> GetListItemsAsync(IReadOnlyCollection<int> ids);
     Task<BookDetailsDto> CreateAsync(BookUpsertDto dto);
     Task<BookDetailsDto> UpdateAsync(int id, BookUpsertDto dto);
     Task DeleteAsync(int id);
