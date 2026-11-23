@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace eBiblioteka.Api.Data;
 
-public static class DbSeeder
+public static partial class DbSeeder
 {
     public static async Task SeedAsync(IServiceProvider services)
     {
@@ -15,7 +15,9 @@ public static class DbSeeder
         await SeedRolesAsync(services);
         await SeedLookupsAsync(db);
         await SeedUsersAsync(services, db);
+        await SeedCatalogAsync(db);
     }
+
     private static async Task SeedUsersAsync(IServiceProvider services, AppDbContext db)
     {
         var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();

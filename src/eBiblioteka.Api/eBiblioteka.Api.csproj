@@ -19,6 +19,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<None Include="SeedData\Covers\*.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<ProjectReference Include="..\eBiblioteka.Shared\eBiblioteka.Shared.csproj" />
 	</ItemGroup>
 

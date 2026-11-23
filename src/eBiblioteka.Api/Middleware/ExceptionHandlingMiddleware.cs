@@ -1,10 +1,16 @@
 using eBiblioteka.Api.Dtos;
 using eBiblioteka.Api.Exceptions;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 
 namespace eBiblioteka.Api.Middleware;
 
 public class ExceptionHandlingMiddleware
 {
+    private const int SqlForeignKeyViolation = 547;
+    private const int SqlUniqueIndexViolation = 2601;
+    private const int SqlUniqueConstraintViolation = 2627;
+
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionHandlingMiddleware> _logger;
 
@@ -30,8 +36,13 @@ public class ExceptionHandlingMiddleware
     {
         var (status, message) = ex switch
         {
+            BadRequestException => (StatusCodes.Status400BadRequest, ex.Message),
             UnauthorizedException => (StatusCodes.Status401Unauthorized, ex.Message),
             ForbiddenException => (StatusCodes.Status403Forbidden, ex.Message),
+            NotFoundException => (StatusCodes.Status404NotFound, ex.Message),
+            ConflictException => (StatusCodes.Status409Conflict, ex.Message),
+            DbUpdateException { InnerException: SqlException sql } when IsConstraintViolation(sql) =>
+                (StatusCodes.Status409Conflict, "Radnja nije dozvoljena jer krši pravila integriteta podataka (zapis se koristi ili već postoji)."),
             _ => (StatusCodes.Status500InternalServerError, "Došlo je do greške na serveru.")
         };
 
@@ -48,4 +59,7 @@ public class ExceptionHandlingMiddleware
             Message = message
         });
     }
+
+    private static bool IsConstraintViolation(SqlException sql) =>
+        sql.Number is SqlForeignKeyViolation or SqlUniqueIndexViolation or SqlUniqueConstraintViolation;
 }
