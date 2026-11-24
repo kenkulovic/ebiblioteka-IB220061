@@ -320,7 +320,8 @@ class Fine {
         userId = json['userId'] as int,
         userFullName = json['userFullName'] as String,
         paymentMethod = json['paymentMethod'] as String?,
-        hasPendingPayment = json['hasPendingPayment'] as bool;
+        hasPendingPayment = json['hasPendingPayment'] as bool,
+        pendingPaymentId = json['pendingPaymentId'] as int?;
 
   final int id;
   final double amount;
@@ -337,6 +338,9 @@ class Fine {
   final String userFullName;
   final String? paymentMethod;
   final bool hasPendingPayment;
+
+  /// Uplata koja je pokrenuta, ali nije zavrsena; clan je moze otkazati.
+  final int? pendingPaymentId;
 
   bool get isUnpaid => status == 'Unpaid';
 }

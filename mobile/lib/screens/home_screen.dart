@@ -1,0 +1,191 @@
+import 'package:ebiblioteka_api/ebiblioteka_api.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:provider/provider.dart';
+
+import '../app_state.dart';
+import '../ui/api_image.dart';
+import '../ui/book_tile.dart';
+
+/// Početni ekran: vijesti biblioteke i preporuke knjiga s objašnjenjem.
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  List<NewsItem>? _news;
+  List<Recommendation>? _recommendations;
+  String? _newsError;
+  String? _recommendationsError;
+
+  LibraryApi get _api => context.read<AppState>().api;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    await Future.wait([_loadNews(), _loadRecommendations()]);
+  }
+
+  Future<void> _loadNews() async {
+    try {
+      final page = await _api.news(pageSize: 5);
+      if (mounted) {
+        setState(() {
+          _news = page.items;
+          _newsError = null;
+        });
+      }
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _newsError = e.message);
+    }
+  }
+
+  Future<void> _loadRecommendations() async {
+    try {
+      final items = await _api.recommendations(count: 6);
+      if (mounted) {
+        setState(() {
+          _recommendations = items;
+          _recommendationsError = null;
+        });
+      }
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _recommendationsError = e.message);
+    }
+  }
+
+  void _openNews(NewsItem item) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+        child: SingleChildScrollView(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            ApiImage(
+              url: _api.newsImageUrl(item.id),
+              width: double.infinity,
+              height: 180,
+              icon: Icons.image,
+            ),
+            const SizedBox(height: 12),
+            Text(item.title, style: Theme.of(context).textTheme.titleLarge),
+            Text(formatDate(item.publishedAt), style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: 12),
+            Text(item.text),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = context.read<AppState>().user!;
+
+    return Scaffold(
+      appBar: AppBar(title: Text('Dobrodošli, ${user.firstName}')),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(children: [
+          _sectionTitle('Vijesti'),
+          _newsSection(),
+          _sectionTitle('Preporučeno za vas'),
+          ..._recommendationSection(),
+          const SizedBox(height: 16),
+        ]),
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String text) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Text(text, style: Theme.of(context).textTheme.titleLarge),
+      );
+
+  Widget _newsSection() {
+    if (_newsError != null) {
+      return Padding(padding: const EdgeInsets.all(16), child: Text(_newsError!));
+    }
+    if (_news == null) {
+      return const SizedBox(height: 150, child: Center(child: CircularProgressIndicator()));
+    }
+    if (_news!.isEmpty) {
+      return const Padding(padding: EdgeInsets.all(16), child: Text('Trenutno nema vijesti.'));
+    }
+
+    return SizedBox(
+      height: 240,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _news!.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          final item = _news![index];
+          return SizedBox(
+            width: 270,
+            child: Card(
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => _openNews(item),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  ApiImage(
+                    url: _api.newsImageUrl(item.id),
+                    width: 270,
+                    height: 110,
+                    radius: 0,
+                    icon: Icons.image,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(item.title,
+                          style: Theme.of(context).textTheme.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 4),
+                      Text(item.text, maxLines: 3, overflow: TextOverflow.ellipsis),
+                    ]),
+                  ),
+                ]),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  List<Widget> _recommendationSection() {
+    if (_recommendationsError != null) {
+      return [Padding(padding: const EdgeInsets.all(16), child: Text(_recommendationsError!))];
+    }
+    if (_recommendations == null) {
+      return const [SizedBox(height: 120, child: Center(child: CircularProgressIndicator()))];
+    }
+    if (_recommendations!.isEmpty) {
+      return const [Padding(padding: EdgeInsets.all(16), child: Text('Za sada nema preporuka.'))];
+    }
+
+    return [
+      for (final r in _recommendations!)
+        BookTile(
+          book: r.book,
+          footer: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(r.explanation, style: Theme.of(context).textTheme.bodySmall),
+          ),
+        ),
+    ];
+  }
+}

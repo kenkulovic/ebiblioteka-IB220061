@@ -18,5 +18,8 @@ public class FineDto
     public int UserId { get; set; }
     public string UserFullName { get; set; } = string.Empty;
     public PaymentMethod? PaymentMethod { get; set; }
-    public bool HasPendingPayment { get; set; }
+    public bool HasPendingPayment => PendingPaymentId.HasValue;
+
+    // Uplata koja je pokrenuta, ali nije završena; član je može otkazati.
+    public int? PendingPaymentId { get; set; }
 }
