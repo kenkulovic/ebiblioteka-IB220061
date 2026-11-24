@@ -4,7 +4,8 @@ import 'package:provider/provider.dart';
 
 import '../app_state.dart';
 import '../ui/api_image.dart';
-import '../ui/book_tile.dart';
+import '../ui/recommendation_tile.dart';
+import 'recommendations_screen.dart';
 
 /// Početni ekran: vijesti biblioteke i preporuke knjiga s objašnjenjem.
 class HomeScreen extends StatefulWidget {
@@ -48,7 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadRecommendations() async {
     try {
-      final items = await _api.recommendations(count: 6);
+      final items = await _api.recommendations(count: 3);
       if (mounted) {
         setState(() {
           _recommendations = items;
@@ -174,18 +175,17 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return [
-      for (final r in _recommendations!)
-        BookTile(
-          book: r.book,
-          footer: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.secondaryContainer,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(r.explanation, style: Theme.of(context).textTheme.bodySmall),
+      for (final r in _recommendations!) RecommendationTile(recommendation: r),
+      Align(
+        alignment: Alignment.centerRight,
+        child: TextButton(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute<void>(builder: (_) => const RecommendationsScreen()),
           ),
+          child: const Text('Prikaži sve'),
         ),
+      ),
     ];
   }
 }

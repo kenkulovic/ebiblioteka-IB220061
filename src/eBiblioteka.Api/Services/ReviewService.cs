@@ -4,6 +4,7 @@ using eBiblioteka.Api.Data.Enums;
 using eBiblioteka.Api.Dtos;
 using eBiblioteka.Api.Exceptions;
 using eBiblioteka.Api.Extensions;
+using eBiblioteka.Api.Services.Recommender;
 using Microsoft.EntityFrameworkCore;
 
 namespace eBiblioteka.Api.Services;
@@ -11,11 +12,13 @@ namespace eBiblioteka.Api.Services;
 public class ReviewService : IReviewService
 {
     private readonly AppDbContext _db;
+    private readonly IRecalculationTrigger _recalculation;
     private readonly ILogger<ReviewService> _logger;
 
-    public ReviewService(AppDbContext db, ILogger<ReviewService> logger)
+    public ReviewService(AppDbContext db, IRecalculationTrigger recalculation, ILogger<ReviewService> logger)
     {
         _db = db;
+        _recalculation = recalculation;
         _logger = logger;
     }
 
@@ -50,6 +53,9 @@ public class ReviewService : IReviewService
         _db.Reviews.Add(review);
         await _db.SaveChangesAsync();
 
+        // Nova ocjena mijenja sličnost knjiga: pozadinski posao preračunava model.
+        _recalculation.Request();
+
         _logger.LogInformation("Član {UserId} ocijenio knjigu {BookId} ocjenom {Rating}",
             userId, loan.BookId, dto.Rating);
 
@@ -65,6 +71,8 @@ public class ReviewService : IReviewService
         review.Comment = string.IsNullOrWhiteSpace(dto.Comment) ? null : dto.Comment.Trim();
         review.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+
+        _recalculation.Request();
 
         return await GetDtoAsync(reviewId);
     }

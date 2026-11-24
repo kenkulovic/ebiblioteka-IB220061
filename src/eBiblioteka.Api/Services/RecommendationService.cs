@@ -1,7 +1,6 @@
 using System.Globalization;
 using eBiblioteka.Api.Data;
 using eBiblioteka.Api.Data.Entities;
-using eBiblioteka.Api.Data.Enums;
 using eBiblioteka.Api.Dtos;
 using eBiblioteka.Api.Exceptions;
 using eBiblioteka.Api.Services.Recommender;
@@ -24,8 +23,8 @@ public class RecommendationService : IRecommendationService
 
     public async Task<int> RecalculateAsync()
     {
-        var interactions = await LoadInteractionsAsync(null);
-        var results = SimilarityCalculator.Calculate(interactions);
+        var ratings = await LoadRatingsAsync(null);
+        var results = SimilarityCalculator.Calculate(ratings);
         var now = DateTime.UtcNow;
 
         // Brisanje stare i upis nove tabele su jedna cjelina: čitaoci nikad ne vide praznu tabelu.
@@ -45,8 +44,8 @@ public class RecommendationService : IRecommendationService
         await transaction.CommitAsync();
 
         _logger.LogInformation(
-            "Preračunata sličnost knjiga: {Pairs} zapisa iz {Interactions} interakcija ({Users} članova)",
-            results.Count, interactions.Count, interactions.Select(i => i.UserId).Distinct().Count());
+            "Preračunata sličnost knjiga: {Pairs} zapisa iz {Ratings} ocjena ({Users} članova)",
+            results.Count, ratings.Count, ratings.Select(r => r.UserId).Distinct().Count());
 
         return results.Count;
     }
@@ -55,104 +54,36 @@ public class RecommendationService : IRecommendationService
     {
         count = Math.Clamp(count, 1, RecommenderSettings.MaxCount);
 
-        var mine = await LoadInteractionsAsync(userId);
-        var weights = mine.ToDictionary(i => i.BookId, i => i.Weight);
+        var myRatings = (await LoadRatingsAsync(userId)).ToDictionary(r => r.BookId, r => r.Value);
 
-        // Ne preporučuju se knjige koje je član već posuđivao ili ih trenutno rezerviše.
-        var openReservations = await _db.Reservations.AsNoTracking()
-            .Where(r => r.UserId == userId &&
-                        (r.Status == ReservationStatus.Pending || r.Status == ReservationStatus.Confirmed))
-            .Select(r => r.BookId)
+        // Ne preporučuju se knjige koje je član već posuđivao.
+        var borrowed = await _db.Loans.AsNoTracking()
+            .Where(l => l.UserId == userId)
+            .Select(l => l.BookId)
+            .Distinct()
             .ToListAsync();
-        var excluded = weights.Keys.Concat(openReservations).Distinct().ToList();
 
-        var ranked = new List<(int BookId, double Score, List<RecommendationReasonDto> Reasons)>();
+        var ranked = myRatings.Count >= RecommenderSettings.MinUserRatings
+            ? await PredictAsync(myRatings, borrowed, count)
+            : new List<Prediction>();
 
-        if (weights.Count > 0)
+        // Nedovoljno ocjena ili nijedna knjiga s dovoljno visokom predviđenom ocjenom: popularne knjige.
+        if (ranked.Count == 0)
         {
-            var sourceIds = weights.Keys.ToList();
-            var neighbors = await _db.BookSimilarities.AsNoTracking()
-                .Where(s => sourceIds.Contains(s.BookId) && !excluded.Contains(s.SimilarBookId))
-                .Select(s => new { s.BookId, s.SimilarBookId, s.Similarity, s.CommonUsers })
-                .ToListAsync();
-
-            var titles = await _db.Books.AsNoTracking()
-                .Where(b => sourceIds.Contains(b.Id))
-                .ToDictionaryAsync(b => b.Id, b => b.Title);
-
-            // Ocjena kandidata = zbir (sličnost sa knjigom koju je član čitao * težina te knjige).
-            // Više različitih povoda i veća težina znače višu ocjenu.
-            ranked = neighbors
-                .GroupBy(n => n.SimilarBookId)
-                .Select(g => (
-                    BookId: g.Key,
-                    Score: g.Sum(n => n.Similarity * weights[n.BookId]),
-                    Reasons: g.OrderByDescending(n => n.Similarity * weights[n.BookId])
-                        .Take(RecommenderSettings.ReasonsPerRecommendation)
-                        .Select(n => new RecommendationReasonDto
-                        {
-                            BookId = n.BookId,
-                            BookTitle = titles[n.BookId],
-                            Similarity = Math.Round(n.Similarity, 4),
-                            CommonUsers = n.CommonUsers
-                        })
-                        .ToList()))
-                .OrderByDescending(x => x.Score)
-                .ThenBy(x => x.BookId)
-                .Take(count)
-                .ToList();
+            return await PopularAsync(borrowed, count);
         }
 
-        var popular = new List<(int BookId, int Loans)>();
-        if (ranked.Count < count)
+        var items = (await _books.GetListItemsAsync(ranked.Select(r => r.BookId).ToList()))
+            .ToDictionary(b => b.Id);
+
+        return ranked.Select(p => new RecommendationDto
         {
-            // Nedovoljno historije (novi član) ili premalo sličnih knjiga: popuna najpopularnijim knjigama.
-            var skip = excluded.Concat(ranked.Select(r => r.BookId)).Distinct().ToList();
-            var rows = await _db.Books.AsNoTracking()
-                .Where(b => !skip.Contains(b.Id))
-                .Select(b => new
-                {
-                    b.Id,
-                    Loans = _db.Loans.Count(l => l.BookId == b.Id),
-                    Average = _db.Reviews.Where(r => r.BookId == b.Id).Average(r => (double?)r.Rating)
-                })
-                .OrderByDescending(x => x.Loans)
-                .ThenByDescending(x => x.Average)
-                .ThenBy(x => x.Id)
-                .Take(count - ranked.Count)
-                .ToListAsync();
-            popular = rows.Select(r => (r.Id, r.Loans)).ToList();
-        }
-
-        var ids = ranked.Select(r => r.BookId).Concat(popular.Select(p => p.BookId)).ToList();
-        var items = (await _books.GetListItemsAsync(ids)).ToDictionary(b => b.Id);
-
-        var result = new List<RecommendationDto>();
-        foreach (var (bookId, score, reasons) in ranked)
-        {
-            result.Add(new RecommendationDto
-            {
-                Book = items[bookId],
-                Score = Math.Round(score, 4),
-                Source = "Similar",
-                Reasons = reasons,
-                Explanation = "Preporučeno jer ste čitali: " + string.Join("; ", reasons.Select(r =>
-                    $"„{r.BookTitle}” (sličnost {Format(r.Similarity)}, zajedničkih čitalaca: {r.CommonUsers})")) + "."
-            });
-        }
-
-        foreach (var (bookId, loans) in popular)
-        {
-            result.Add(new RecommendationDto
-            {
-                Book = items[bookId],
-                Score = 0,
-                Source = "Popular",
-                Explanation = $"Popularno među članovima biblioteke (posudbi: {loans})."
-            });
-        }
-
-        return result;
+            Book = items[p.BookId],
+            Score = Math.Round(p.PredictedRating, 2),
+            Source = "Similar",
+            Reasons = new List<RecommendationReasonDto> { p.Reason },
+            Explanation = Explain(p.Reason)
+        }).ToList();
     }
 
     public async Task<List<SimilarBookDto>> GetSimilarBooksAsync(int bookId, int count)
@@ -184,37 +115,113 @@ public class RecommendationService : IRecommendationService
         }).ToList();
     }
 
-    // Jedna interakcija po paru (član, knjiga): prosjek ocjena ako postoje, inače neutralna težina.
-    private async Task<List<Interaction>> LoadInteractionsAsync(int? userId)
+    // Predviđena ocjena knjige = ponderisani prosjek članovih ocjena do 10 najsličnijih knjiga koje je ocijenio
+    // (težina je sličnost; koriste se samo pozitivne sličnosti, pa tabela i sadrži samo njih).
+    private async Task<List<Prediction>> PredictAsync(
+        Dictionary<int, double> myRatings, List<int> borrowed, int count)
     {
-        var loans = _db.Loans.AsNoTracking().AsQueryable();
-        if (userId.HasValue)
+        var ratedIds = myRatings.Keys.ToList();
+
+        var neighbors = await _db.BookSimilarities.AsNoTracking()
+            .Where(s => ratedIds.Contains(s.BookId) && !borrowed.Contains(s.SimilarBookId))
+            .Select(s => new { RatedBookId = s.BookId, CandidateId = s.SimilarBookId, s.Similarity, s.CommonUsers })
+            .ToListAsync();
+
+        var predictions = new List<(int BookId, double Predicted, int SourceBookId, double Similarity, int Common)>();
+
+        foreach (var candidate in neighbors.GroupBy(n => n.CandidateId))
         {
-            loans = loans.Where(l => l.UserId == userId.Value);
+            var nearest = candidate
+                .OrderByDescending(n => n.Similarity)
+                .Take(RecommenderSettings.NeighborsForPrediction)
+                .ToList();
+
+            var predicted = nearest.Sum(n => n.Similarity * myRatings[n.RatedBookId]) / nearest.Sum(n => n.Similarity);
+            if (predicted < RecommenderSettings.MinPredictedRating)
+            {
+                continue;
+            }
+
+            // Knjiga koja je najviše doprinijela predviđanju: najveći proizvod sličnosti i članove ocjene.
+            var best = nearest.MaxBy(n => n.Similarity * myRatings[n.RatedBookId])!;
+            predictions.Add((candidate.Key, predicted, best.RatedBookId, best.Similarity, best.CommonUsers));
         }
 
-        var rows = await loans
-            .Select(l => new
+        var top = predictions
+            .OrderByDescending(p => p.Predicted)
+            .ThenBy(p => p.BookId)
+            .Take(count)
+            .ToList();
+
+        var titles = await _db.Books.AsNoTracking()
+            .Where(b => top.Select(p => p.SourceBookId).Contains(b.Id))
+            .ToDictionaryAsync(b => b.Id, b => b.Title);
+
+        return top.Select(p => new Prediction(
+            p.BookId,
+            p.Predicted,
+            new RecommendationReasonDto
             {
-                l.UserId,
-                l.BookId,
-                Rating = _db.Reviews.Where(r => r.LoanId == l.Id).Select(r => (int?)r.Rating).FirstOrDefault()
-            })
+                BookId = p.SourceBookId,
+                BookTitle = titles[p.SourceBookId],
+                Similarity = Math.Round(p.Similarity, 4),
+                CommonUsers = p.Common,
+                UserRating = (int)Math.Round(myRatings[p.SourceBookId])
+            })).ToList();
+    }
+
+    // Najviše posudbi u posljednjih 30 dana.
+    private async Task<List<RecommendationDto>> PopularAsync(List<int> borrowed, int count)
+    {
+        var since = DateTime.UtcNow.AddDays(-RecommenderSettings.PopularDays);
+
+        var popular = await _db.Loans.AsNoTracking()
+            .Where(l => l.LoanDate >= since && !borrowed.Contains(l.BookId))
+            .GroupBy(l => l.BookId)
+            .Select(g => new { BookId = g.Key, Loans = g.Count() })
+            .OrderByDescending(x => x.Loans)
+            .ThenBy(x => x.BookId)
+            .Take(count)
             .ToListAsync();
+
+        var items = (await _books.GetListItemsAsync(popular.Select(p => p.BookId).ToList()))
+            .ToDictionary(b => b.Id);
+
+        return popular.Select(p => new RecommendationDto
+        {
+            Book = items[p.BookId],
+            Score = 0,
+            Source = "Popular",
+            Explanation = "Najčešće posuđivano ovog mjeseca."
+        }).ToList();
+    }
+
+    // Jedna ocjena po paru (član, knjiga): prosjek, ako je član više puta posuđivao i ocjenjivao istu knjigu.
+    private async Task<List<Rating>> LoadRatingsAsync(int? userId)
+    {
+        var reviews = _db.Reviews.AsNoTracking().AsQueryable();
+        if (userId.HasValue)
+        {
+            reviews = reviews.Where(r => r.UserId == userId.Value);
+        }
+
+        var rows = await reviews.Select(r => new { r.UserId, r.BookId, r.Rating }).ToListAsync();
 
         return rows
             .GroupBy(r => (r.UserId, r.BookId))
-            .Select(g =>
-            {
-                var ratings = g.Where(r => r.Rating.HasValue).Select(r => (double)r.Rating!.Value).ToList();
-                return new Interaction(
-                    g.Key.UserId,
-                    g.Key.BookId,
-                    SimilarityCalculator.WeightOf(ratings.Count > 0 ? ratings.Average() : null));
-            })
+            .Select(g => new Rating(g.Key.UserId, g.Key.BookId, g.Average(r => r.Rating)))
             .ToList();
     }
 
-    private static string Format(double value) =>
-        value.ToString("0.00", CultureInfo.InvariantCulture).Replace('.', ',');
+    private static string Explain(RecommendationReasonDto reason)
+    {
+        var similarity = reason.Similarity.ToString("0.00", CultureInfo.InvariantCulture).Replace('.', ',');
+        var verb = reason.UserRating >= RecommenderSettings.HighRating
+            ? "visoko ocijenili"
+            : $"ocijenili ocjenom {reason.UserRating}";
+
+        return $"Zato što ste {verb} ‚{reason.BookTitle}‘ (sličnost {similarity})";
+    }
+
+    private sealed record Prediction(int BookId, double PredictedRating, RecommendationReasonDto Reason);
 }

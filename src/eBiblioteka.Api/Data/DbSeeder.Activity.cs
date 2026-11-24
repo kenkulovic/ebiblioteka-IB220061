@@ -25,46 +25,52 @@ public static partial class DbSeeder
         // Vraćene posudbe s ocjenom (zadržavanje knjige: 10 dana, rok je 14).
         var readings = new[]
         {
+            // Lejla voli domaće klasike, a distopiju ne.
             new SeedReading("mobile", "Na Drini ćuprija", 60, 5, "Veličanstven roman o mostu i ljudima."),
             new SeedReading("mobile", "Prokleta avlija", 45, 5),
             new SeedReading("mobile", "Derviš i smrt", 30, 4),
-            new SeedReading("mobile", "1984", 20, 3),
+            new SeedReading("mobile", "1984", 20, 2),
 
             new SeedReading("maja", "Na Drini ćuprija", 70, 5),
-            new SeedReading("maja", "Travnička hronika", 55, 4),
+            new SeedReading("maja", "Travnička hronika", 55, 5),
             new SeedReading("maja", "Derviš i smrt", 40, 5, "Knjiga koja se pamti."),
-            new SeedReading("maja", "Tvrđava", 25, 4),
-            new SeedReading("maja", "Sto godina samoće", 15, 5),
+            new SeedReading("maja", "Tvrđava", 25, 5),
+            new SeedReading("maja", "Sto godina samoće", 15, 3),
+            new SeedReading("maja", "Kratka historija vremena", 12, 2),
 
             new SeedReading("adnan", "Prokleta avlija", 65, 4),
             new SeedReading("adnan", "Derviš i smrt", 50, 5),
             new SeedReading("adnan", "Tvrđava", 35, 5),
-            new SeedReading("adnan", "1984", 28, 5),
-            new SeedReading("adnan", "Životinjska farma", 21, 4),
-            new SeedReading("adnan", "Kratka historija vremena", 14, 4),
+            new SeedReading("adnan", "1984", 28, 2),
+            new SeedReading("adnan", "Životinjska farma", 21, 2),
+            new SeedReading("adnan", "Kratka historija vremena", 14, 3),
 
+            // Emir i Tarik vole distopiju i popularnu nauku.
             new SeedReading("emir", "1984", 80, 5),
             new SeedReading("emir", "Životinjska farma", 62, 5),
             new SeedReading("emir", "Kratka historija vremena", 44, 5, "Teško, ali vrijedi truda."),
-            new SeedReading("emir", "Bosna: kratka historija", 30, 3),
-            new SeedReading("emir", "Orlovi rano lete", 18, 4),
+            new SeedReading("emir", "Bosna: kratka historija", 30, 4),
+            new SeedReading("emir", "Orlovi rano lete", 18, 3),
+            new SeedReading("emir", "Derviš i smrt", 9, 2),
 
             new SeedReading("amra", "Na Drini ćuprija", 75, 4),
             new SeedReading("amra", "Prokleta avlija", 58, 5),
             new SeedReading("amra", "Travnička hronika", 42, 5),
             new SeedReading("amra", "Kameni spavač", 26, 5, "Poezija koja ostaje."),
-            new SeedReading("amra", "Dnevnik Ane Frank", 12, 4),
+            new SeedReading("amra", "Dnevnik Ane Frank", 12, 3),
+            new SeedReading("amra", "Životinjska farma", 6, 2),
 
             new SeedReading("tarik", "Kratka historija vremena", 68, 5),
             new SeedReading("tarik", "1984", 52, 4),
             new SeedReading("tarik", "Bosna: kratka historija", 36, 5),
-            new SeedReading("tarik", "Tvrđava", 22, 3),
+            new SeedReading("tarik", "Tvrđava", 22, 2),
+            new SeedReading("tarik", "Prokleta avlija", 16, 2),
 
             new SeedReading("sara", "Orlovi rano lete", 66, 5),
             new SeedReading("sara", "Ježeva kućica", 48, 5),
             new SeedReading("sara", "Dnevnik Ane Frank", 33, 5),
             new SeedReading("sara", "Ana Karenjina", 19, 4),
-            new SeedReading("sara", "Sto godina samoće", 10, 4)
+            new SeedReading("sara", "Sto godina samoće", 10, 5)
         };
 
         foreach (var reading in readings)

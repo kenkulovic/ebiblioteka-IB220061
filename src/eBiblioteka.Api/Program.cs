@@ -9,6 +9,7 @@ using System.Text;
 using eBiblioteka.Api.Services;
 using eBiblioteka.Api.Services.Email;
 using eBiblioteka.Api.Services.PayPal;
+using eBiblioteka.Api.Services.Recommender;
 using eBiblioteka.Shared.Messaging;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -66,6 +67,8 @@ builder.Services.AddScoped<IMemberService, MemberService>();
 builder.Services.AddScoped<IRecommendationService, RecommendationService>();
 builder.Services.AddScoped<INewsService, NewsService>();
 builder.Services.AddScoped<IReportService, ReportService>();
+builder.Services.AddSingleton<RecalculationTrigger>();
+builder.Services.AddSingleton<IRecalculationTrigger>(sp => sp.GetRequiredService<RecalculationTrigger>());
 builder.Services.AddHostedService<ReservationExpirationJob>();
 builder.Services.AddHostedService<SimilarityRecalculationJob>();
 

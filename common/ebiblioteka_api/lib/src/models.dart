@@ -464,12 +464,16 @@ class RecommendationReason {
       : bookId = json['bookId'] as int,
         bookTitle = json['bookTitle'] as String,
         similarity = _double(json['similarity']),
-        commonUsers = json['commonUsers'] as int;
+        commonUsers = json['commonUsers'] as int,
+        userRating = json['userRating'] as int;
 
   final int bookId;
   final String bookTitle;
   final double similarity;
   final int commonUsers;
+
+  /// Ocjena koju je clan dao toj knjizi.
+  final int userRating;
 }
 
 class Recommendation {

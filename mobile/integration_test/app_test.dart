@@ -157,7 +157,7 @@ void main() {
     await waitFor(tester, find.text('Dobrodošli, Lejla'));
     // Vijesti idu od najnovije: prva kartica je vidljiva bez listanja.
     await waitFor(tester, find.text('Preporuke za vas'));
-    await waitFor(tester, find.textContaining('Preporučeno jer ste čitali'));
+    await waitFor(tester, find.textContaining('Zato što ste visoko ocijenili'));
     expect(find.text('Tvrđava'), findsOneWidget);
 
     // Vijest se otvara u donjem listu.
@@ -264,7 +264,7 @@ void main() {
 
     // Registracija je i prijava; novi clan bez historije dobija popularne knjige.
     await waitFor(tester, find.text('Dobrodošli, Novi'));
-    await waitFor(tester, find.textContaining('Popularno među članovima'));
+    await waitFor(tester, find.textContaining('Najčešće posuđivano ovog mjeseca'));
 
     await logout(tester);
   });
