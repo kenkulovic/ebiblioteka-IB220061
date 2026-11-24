@@ -27,15 +27,32 @@ class _LoansScreenState extends State<LoansScreen> {
   }
 
   Future<void> _return(Loan loan) async {
+    final api = context.read<AppState>().api;
+
+    // Pregled povrata: rok, datum povrata, dani kašnjenja i zakasnina koja će biti obračunata.
+    ReturnPreview preview;
+    try {
+      preview = await api.returnPreview(loan.id);
+    } on ApiException catch (e) {
+      if (mounted) showMessage(context, e.message, error: true);
+      return;
+    }
+    if (!mounted) return;
+
+    final fineText = preview.daysLate == 0
+        ? 'Nema kašnjenja, zakasnina se ne obračunava.'
+        : 'Kašnjenje: ${preview.daysLate} d., zakasnina: ${formatKm(preview.fineAmountKm)}.';
     final ok = await confirm(
       context,
       title: 'Povrat knjige',
-      message: 'Evidentirati povrat knjige "${loan.bookTitle}" (${loan.userFullName})?',
+      message: 'Evidentirati povrat knjige "${loan.bookTitle}" (${loan.userFullName})?\n\n'
+          'Rok povrata: ${formatDate(preview.dueDate)}\n'
+          'Datum povrata: ${formatDate(preview.returnDate)}\n'
+          '$fineText',
       confirmText: 'Evidentiraj povrat',
     );
     if (!ok || !mounted) return;
 
-    final api = context.read<AppState>().api;
     try {
       final returned = await api.returnLoan(loan.id);
       if (mounted) {
@@ -117,6 +134,7 @@ class _IssueLoanDialogState extends State<_IssueLoanDialog> with SingleTickerPro
   int? _reservationId;
   Member? _member;
   BookItem? _book;
+  IssueCheck? _check;
 
   bool _loading = true;
   bool _saving = false;
@@ -155,7 +173,23 @@ class _IssueLoanDialogState extends State<_IssueLoanDialog> with SingleTickerPro
     }
   }
 
-  bool get _canSubmit => _tabs.index == 0 ? _reservationId != null : (_member != null && _book != null);
+  bool get _canSubmit =>
+      _tabs.index == 0 ? _reservationId != null : (_member != null && _book != null && _check?.canIssue == true);
+
+  /// Provjera pravila za odabranog člana i knjigu: prikazuje se prije snimanja.
+  Future<void> _runCheck() async {
+    setState(() => _check = null);
+    final member = _member;
+    final book = _book;
+    if (member == null || book == null) return;
+
+    try {
+      final check = await _api.issueCheck(member.id, book.id);
+      if (mounted && _member?.id == member.id && _book?.id == book.id) setState(() => _check = check);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    }
+  }
 
   Future<void> _submit() async {
     setState(() {
@@ -235,6 +269,29 @@ class _IssueLoanDialogState extends State<_IssueLoanDialog> with SingleTickerPro
     );
   }
 
+  Widget _checkPanel(IssueCheck check) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Card(
+      key: const ValueKey('issue-check'),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Provjera pravila', style: Theme.of(context).textTheme.labelLarge),
+          const SizedBox(height: 6),
+          Text('Aktivne posudbe člana: ${check.activeLoans} od ${check.maxActiveLoans}'),
+          Text('Neplaćene zakasnine: ${check.unpaidFines}'),
+          Text('Slobodnih primjeraka: ${check.availableCopies}'),
+          const SizedBox(height: 6),
+          if (check.canIssue)
+            const Text('Sva pravila su ispunjena.', style: TextStyle(fontWeight: FontWeight.w600))
+          else
+            for (final problem in check.problems) Text(problem, style: TextStyle(color: scheme.error)),
+        ]),
+      ),
+    );
+  }
+
   Widget _direct() {
     return SingleChildScrollView(
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -244,7 +301,13 @@ class _IssueLoanDialogState extends State<_IssueLoanDialog> with SingleTickerPro
             leading: const Icon(Icons.person),
             title: Text(_member!.fullName),
             subtitle: Text(_member!.membershipNumber),
-            trailing: IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _member = null)),
+            trailing: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () {
+                setState(() => _member = null);
+                _runCheck();
+              },
+            ),
           )
         else
           RemotePicker<Member>(
@@ -252,7 +315,10 @@ class _IssueLoanDialogState extends State<_IssueLoanDialog> with SingleTickerPro
             hint: 'Ime, prezime ili broj karte',
             search: (text) async => (await _api.members(search: text, pageSize: 10)).items,
             display: (m) => '${m.fullName} (${m.membershipNumber})',
-            onSelected: (m) => setState(() => _member = m),
+            onSelected: (m) {
+              setState(() => _member = m);
+              _runCheck();
+            },
           ),
         const SizedBox(height: 16),
         if (_book != null)
@@ -260,7 +326,13 @@ class _IssueLoanDialogState extends State<_IssueLoanDialog> with SingleTickerPro
             leading: const Icon(Icons.menu_book),
             title: Text(_book!.title),
             subtitle: Text('Dostupno: ${_book!.availableCopies} od ${_book!.totalCopies}'),
-            trailing: IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _book = null)),
+            trailing: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () {
+                setState(() => _book = null);
+                _runCheck();
+              },
+            ),
           )
         else
           RemotePicker<BookItem>(
@@ -268,9 +340,14 @@ class _IssueLoanDialogState extends State<_IssueLoanDialog> with SingleTickerPro
             hint: 'Naslov ili autor',
             search: (text) async => (await _api.books(search: text, pageSize: 10)).items,
             display: (b) => '${b.title} (dostupno: ${b.availableCopies})',
-            onSelected: (b) => setState(() => _book = b),
+            onSelected: (b) {
+              setState(() => _book = b);
+              _runCheck();
+            },
           ),
         const SizedBox(height: 12),
+        if (_check != null) _checkPanel(_check!),
+        const SizedBox(height: 8),
         const Text('Rok povrata je 14 dana od danas.'),
       ]),
     );

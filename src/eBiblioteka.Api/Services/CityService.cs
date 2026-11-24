@@ -37,7 +37,8 @@ public class CityService : ICityService
                 Id = c.Id,
                 Name = c.Name,
                 CountryId = c.CountryId,
-                CountryName = c.Country.Name
+                CountryName = c.Country.Name,
+                UsageCount = _db.Publishers.Count(p => p.CityId == c.Id) + _db.Users.Count(u => u.CityId == c.Id)
             })
             .ToPagedAsync(query);
     }
@@ -89,10 +90,12 @@ public class CityService : ICityService
         var city = await _db.Cities.FindAsync(id)
             ?? throw new NotFoundException("Grad nije pronađen.");
 
-        if (await _db.Publishers.AnyAsync(p => p.CityId == id) ||
-            await _db.Users.AnyAsync(u => u.CityId == id))
+        var publisherCount = await _db.Publishers.CountAsync(p => p.CityId == id);
+        var memberCount = await _db.Users.CountAsync(u => u.CityId == id);
+        if (publisherCount + memberCount > 0)
         {
-            throw new ConflictException("Grad se ne može obrisati jer ga koriste izdavači ili članovi.");
+            throw new ConflictException(
+                $"Grad se ne može obrisati jer ga koriste izdavači ({publisherCount}) ili članovi ({memberCount}).");
         }
 
         _db.Cities.Remove(city);

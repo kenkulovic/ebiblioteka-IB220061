@@ -32,7 +32,8 @@ public class PublisherService : IPublisherService
                 Id = p.Id,
                 Name = p.Name,
                 CityId = p.CityId,
-                CityName = p.City.Name
+                CityName = p.City.Name,
+                UsageCount = _db.Books.Count(b => b.PublisherId == p.Id)
             })
             .ToPagedAsync(query);
     }
@@ -84,9 +85,11 @@ public class PublisherService : IPublisherService
         var publisher = await _db.Publishers.FindAsync(id)
             ?? throw new NotFoundException("Izdavač nije pronađen.");
 
-        if (await _db.Books.AnyAsync(b => b.PublisherId == id))
+        var bookCount = await _db.Books.CountAsync(b => b.PublisherId == id);
+        if (bookCount > 0)
         {
-            throw new ConflictException("Izdavač se ne može obrisati jer postoje knjige tog izdavača.");
+            throw new ConflictException(
+                $"Izdavač se ne može obrisati jer postoje knjige tog izdavača ({bookCount}).");
         }
 
         _db.Publishers.Remove(publisher);

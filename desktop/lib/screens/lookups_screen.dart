@@ -31,6 +31,7 @@ class LookupsScreen extends StatelessWidget {
               fetch: (page, search) => api.lookups('countries', page: page, search: search),
               idOf: (c) => c.id,
               nameOf: (c) => c.name,
+              usageOf: (c) => c.usageCount,
               create: (name, _) => api.createLookup('countries', name),
               update: (id, name, _) => api.updateLookup('countries', id, name),
               delete: (id) => api.deleteLookup('countries', id),
@@ -42,6 +43,7 @@ class LookupsScreen extends StatelessWidget {
               fetch: (page, search) => api.cities(page: page, search: search),
               idOf: (c) => c.id,
               nameOf: (c) => c.name,
+              usageOf: (c) => c.usageCount,
               referenceTextOf: (c) => c.countryName,
               referenceIdOf: (c) => c.countryId,
               create: (name, ref) => api.createCity(name, ref!),
@@ -53,6 +55,7 @@ class LookupsScreen extends StatelessWidget {
               fetch: (page, search) => api.lookups('categories', page: page, search: search),
               idOf: (c) => c.id,
               nameOf: (c) => c.name,
+              usageOf: (c) => c.usageCount,
               create: (name, _) => api.createLookup('categories', name),
               update: (id, name, _) => api.updateLookup('categories', id, name),
               delete: (id) => api.deleteLookup('categories', id),
@@ -65,6 +68,7 @@ class LookupsScreen extends StatelessWidget {
               fetch: (page, search) => api.publishers(page: page, search: search),
               idOf: (p) => p.id,
               nameOf: (p) => p.name,
+              usageOf: (p) => p.usageCount,
               referenceTextOf: (p) => p.cityName,
               referenceIdOf: (p) => p.cityId,
               create: (name, ref) => api.createPublisher(name, ref!),
@@ -84,6 +88,7 @@ class _LookupTab<T> extends StatefulWidget {
     required this.fetch,
     required this.idOf,
     required this.nameOf,
+    required this.usageOf,
     required this.create,
     required this.update,
     required this.delete,
@@ -103,6 +108,9 @@ class _LookupTab<T> extends StatefulWidget {
   final Future<PagedResult<T>> Function(int page, String search) fetch;
   final int Function(T item) idOf;
   final String Function(T item) nameOf;
+
+  /// Broj zapisa koji koriste stavku; ako je veći od nule, brisanje je onemogućeno.
+  final int Function(T item) usageOf;
   final String Function(T item)? referenceTextOf;
   final int Function(T item)? referenceIdOf;
   final Future<void> Function(String name, int? referenceId) create;
@@ -164,14 +172,21 @@ class _LookupTabState<T> extends State<_LookupTab<T>> with AutomaticKeepAliveCli
           label: Text('Dodaj ${widget.singular}'),
         ),
       ],
-      columns: ['Naziv', if (widget.referenceLabel != null) widget.referenceLabel!, ''],
+      columns: ['Naziv', if (widget.referenceLabel != null) widget.referenceLabel!, 'U upotrebi', ''],
       fetch: widget.fetch,
       rowBuilder: (item, reload) => DataRow(cells: [
         DataCell(Text(widget.nameOf(item))),
         if (widget.referenceTextOf != null) DataCell(Text(widget.referenceTextOf!(item))),
+        DataCell(Text('${widget.usageOf(item)}')),
         DataCell(Row(children: [
           IconButton(tooltip: 'Izmijeni', onPressed: () => _edit(item), icon: const Icon(Icons.edit)),
-          IconButton(tooltip: 'Obriši', onPressed: () => _delete(item), icon: const Icon(Icons.delete_outline)),
+          IconButton(
+            tooltip: widget.usageOf(item) > 0
+                ? 'Stavka se koristi u ${widget.usageOf(item)} zapisa i ne može se obrisati.'
+                : 'Obriši',
+            onPressed: widget.usageOf(item) > 0 ? null : () => _delete(item),
+            icon: const Icon(Icons.delete_outline),
+          ),
         ])),
       ]),
     );

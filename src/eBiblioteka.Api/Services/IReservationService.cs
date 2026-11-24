@@ -11,4 +11,5 @@ public interface IReservationService
     Task<ReservationDetailsDto> ConfirmAsync(int id, int adminId);
     Task<ReservationDetailsDto> CancelAsync(int id, int actorId, bool isAdmin, string? reason);
     Task<int> ExpireOverdueAsync();
+    Task<ReserveCheckDto> CheckAsync(int userId, int bookId);
 }

@@ -27,7 +27,7 @@ public class CategoryService : ICategoryService
 
         return await categories
             .OrderBy(c => c.Name)
-            .Select(c => new LookupDto { Id = c.Id, Name = c.Name })
+            .Select(c => new LookupDto { Id = c.Id, Name = c.Name, UsageCount = _db.Books.Count(b => b.CategoryId == c.Id) })
             .ToPagedAsync(query);
     }
 
@@ -77,9 +77,11 @@ public class CategoryService : ICategoryService
         var category = await _db.Categories.FindAsync(id)
             ?? throw new NotFoundException("Kategorija nije pronađena.");
 
-        if (await _db.Books.AnyAsync(b => b.CategoryId == id))
+        var bookCount = await _db.Books.CountAsync(b => b.CategoryId == id);
+        if (bookCount > 0)
         {
-            throw new ConflictException("Kategorija se ne može obrisati jer postoje knjige u toj kategoriji.");
+            throw new ConflictException(
+                $"Kategorija se ne može obrisati jer postoje knjige u toj kategoriji ({bookCount}).");
         }
 
         _db.Categories.Remove(category);

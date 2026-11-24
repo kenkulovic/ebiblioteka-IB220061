@@ -150,13 +150,13 @@ void main() {
     await tester.tap(find.text('Potvrdi').first);
     await waitFor(tester, find.textContaining('Nema slobodnih primjeraka'));
 
-    // Brisanje države koju koriste gradovi.
+    // Država koju koriste gradovi i autori: brisanje je onemogućeno uz objašnjenje i broj zapisa.
     await openSection(tester, 'Šifarnici');
     await waitFor(tester, find.text('Bosna i Hercegovina'));
-    await tester.tap(find.byTooltip('Obriši').first);
-    await settle(tester);
-    await tester.tap(find.widgetWithText(FilledButton, 'Obriši'));
-    await waitFor(tester, find.textContaining('koriste gradovi ili autori'));
+    expect(find.text('U upotrebi'), findsOneWidget);
+    final blockedDelete = find.byWidgetPredicate((w) =>
+        w is IconButton && w.onPressed == null && (w.tooltip ?? '').contains('ne može se obrisati'));
+    expect(blockedDelete, findsWidgets);
   });
 
   testWidgets('sifarnik: dodavanje, duplikat i brisanje kategorije', (tester) async {
@@ -285,6 +285,36 @@ void main() {
     await settle(tester);
     await tester.tap(find.widgetWithText(FilledButton, 'Odblokiraj'));
     await waitFor(tester, find.text('Član je odblokiran.'));
+  });
+
+  testWidgets('detalji clana i pregled povrata', (tester) async {
+    await startApp(tester);
+    await login(tester, 'desktop', 'test');
+    await waitFor(tester, find.text('Derviš i smrt'));
+
+    // Detalji člana: lični podaci i historija po karticama.
+    await openSection(tester, 'Članovi');
+    await waitFor(tester, find.text('Tarik Delić'));
+    await tester.tap(find.widgetWithText(TextButton, 'Tarik Delić'));
+    await waitFor(tester, find.text('Član: Tarik Delić'));
+    expect(find.textContaining('Broj karte:'), findsOneWidget);
+    await tester.tap(find.text('Rezervacije').last);
+    await settle(tester);
+    await tester.tap(find.text('Zakasnine').last);
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('dialog-close')));
+    await settle(tester);
+    expect(find.text('Član: Tarik Delić'), findsNothing);
+
+    // Pregled povrata prije potvrde: rok, datum povrata i zakasnina; odustajanje ne mijenja ništa.
+    await openSection(tester, 'Posudbe');
+    await waitFor(tester, find.widgetWithText(TextButton, 'Povrat'));
+    await tester.tap(find.widgetWithText(TextButton, 'Povrat').first);
+    await waitFor(tester, find.textContaining('Datum povrata:'));
+    expect(find.textContaining('Rok povrata:'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Otkaži'));
+    await settle(tester);
+    expect(find.textContaining('Datum povrata:'), findsNothing);
   });
 
   testWidgets('izvještaji: prikaz zbirnih podataka', (tester) async {

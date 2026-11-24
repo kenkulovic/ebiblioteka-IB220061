@@ -82,6 +82,45 @@ public class ReservationService : IReservationService
         return await GetDetailsAsync(reservation.Id);
     }
 
+    public async Task<ReserveCheckDto> CheckAsync(int userId, int bookId)
+    {
+        if (!await _db.Books.AnyAsync(b => b.Id == bookId))
+        {
+            throw new NotFoundException("Knjiga nije pronađena.");
+        }
+
+        var restriction = await _eligibility.GetRestrictionAsync(userId);
+        if (restriction != null)
+        {
+            return new ReserveCheckDto { Reason = restriction };
+        }
+
+        if (await _db.Loans.AnyAsync(l => l.UserId == userId && l.BookId == bookId && l.Status == LoanStatus.Active))
+        {
+            return new ReserveCheckDto { Reason = "Ovu knjigu već imate posuđenu." };
+        }
+
+        if (await _db.Reservations.AnyAsync(r =>
+                r.UserId == userId && r.BookId == bookId &&
+                (r.Status == ReservationStatus.Pending || r.Status == ReservationStatus.Confirmed)))
+        {
+            return new ReserveCheckDto { Reason = "Već imate otvorenu rezervaciju za ovu knjigu." };
+        }
+
+        var openCount = await _db.Reservations.CountAsync(r =>
+            r.UserId == userId &&
+            (r.Status == ReservationStatus.Pending || r.Status == ReservationStatus.Confirmed));
+        if (openCount >= LibraryRules.MaxOpenReservations)
+        {
+            return new ReserveCheckDto
+            {
+                Reason = $"Možete imati najviše {LibraryRules.MaxOpenReservations} otvorene rezervacije."
+            };
+        }
+
+        return new ReserveCheckDto { CanReserve = true };
+    }
+
     public async Task<PagedResultDto<ReservationDto>> GetMineAsync(int userId, ReservationQueryDto query)
     {
         var reservations = _db.Reservations.AsNoTracking().Where(r => r.UserId == userId);
@@ -265,6 +304,11 @@ public class ReservationService : IReservationService
         ReservationQueryDto query,
         bool includeMemberSearch)
     {
+        if (query.UserId.HasValue)
+        {
+            reservations = reservations.Where(r => r.UserId == query.UserId.Value);
+        }
+
         if (query.Status.HasValue)
         {
             reservations = reservations.Where(r => r.Status == query.Status.Value);

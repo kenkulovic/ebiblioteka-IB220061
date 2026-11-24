@@ -56,10 +56,14 @@ class LoginResult {
 class Lookup {
   Lookup.fromJson(Map<String, dynamic> json)
       : id = json['id'] as int,
-        name = json['name'] as String;
+        name = json['name'] as String,
+        usageCount = json['usageCount'] as int? ?? 0;
 
   final int id;
   final String name;
+
+  /// Broj zapisa koji koriste stavku; stavka u upotrebi ne može se obrisati.
+  final int usageCount;
 }
 
 class City {
@@ -67,12 +71,14 @@ class City {
       : id = json['id'] as int,
         name = json['name'] as String,
         countryId = json['countryId'] as int,
-        countryName = json['countryName'] as String;
+        countryName = json['countryName'] as String,
+        usageCount = json['usageCount'] as int? ?? 0;
 
   final int id;
   final String name;
   final int countryId;
   final String countryName;
+  final int usageCount;
 }
 
 class Publisher {
@@ -80,12 +86,14 @@ class Publisher {
       : id = json['id'] as int,
         name = json['name'] as String,
         cityId = json['cityId'] as int,
-        cityName = json['cityName'] as String;
+        cityName = json['cityName'] as String,
+        usageCount = json['usageCount'] as int? ?? 0;
 
   final int id;
   final String name;
   final int cityId;
   final String cityName;
+  final int usageCount;
 }
 
 class Author {
@@ -592,4 +600,46 @@ class FineReport {
   final double paidCounterKm;
   final int refundedCount;
   final double refundedEur;
+}
+
+/// Rezultat provjere pravila prije izdavanja knjige.
+class IssueCheck {
+  IssueCheck.fromJson(Map<String, dynamic> json)
+      : activeLoans = json['activeLoans'] as int,
+        maxActiveLoans = json['maxActiveLoans'] as int,
+        unpaidFines = json['unpaidFines'] as int,
+        availableCopies = json['availableCopies'] as int,
+        canIssue = json['canIssue'] as bool,
+        problems = (json['problems'] as List<dynamic>).cast<String>();
+
+  final int activeLoans;
+  final int maxActiveLoans;
+  final int unpaidFines;
+  final int availableCopies;
+  final bool canIssue;
+  final List<String> problems;
+}
+
+/// Pregled povrata: rok, datum povrata, dani kašnjenja i zakasnina koja će biti obračunata.
+class ReturnPreview {
+  ReturnPreview.fromJson(Map<String, dynamic> json)
+      : dueDate = _date(json['dueDate']),
+        returnDate = _date(json['returnDate']),
+        daysLate = json['daysLate'] as int,
+        fineAmountKm = _double(json['fineAmountKm']);
+
+  final DateTime dueDate;
+  final DateTime returnDate;
+  final int daysLate;
+  final double fineAmountKm;
+}
+
+/// Može li član rezervisati knjigu; ako ne, [reason] objašnjava zašto.
+class ReserveCheck {
+  ReserveCheck.fromJson(Map<String, dynamic> json)
+      : canReserve = json['canReserve'] as bool,
+        reason = json['reason'] as String?;
+
+  final bool canReserve;
+  final String? reason;
 }

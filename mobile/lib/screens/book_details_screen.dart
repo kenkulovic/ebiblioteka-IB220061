@@ -24,6 +24,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   int _reviewTotal = 0;
   int _reviewPage = 0;
 
+  ReserveCheck? _check;
   String? _error;
   bool _reserving = false;
   bool _loadingReviews = false;
@@ -44,9 +45,19 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         _book = book;
         _error = null;
       });
-      await Future.wait([_loadSimilar(), _loadMoreReviews()]);
+      await Future.wait([_loadCheck(), _loadSimilar(), _loadMoreReviews()]);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
+    }
+  }
+
+  /// Može li član rezervisati knjigu; ako ne, razlog se prikazuje uz onemogućeno dugme.
+  Future<void> _loadCheck() async {
+    try {
+      final check = await _api.reserveCheck(widget.bookId);
+      if (mounted) setState(() => _check = check);
+    } on ApiException {
+      // Bez provjere dugme ostaje aktivno, a server svejedno odbija nedozvoljenu rezervaciju.
     }
   }
 
@@ -79,8 +90,18 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   }
 
   Future<void> _reserve() async {
-    setState(() => _reserving = true);
     final book = _book!;
+    final yes = await confirm(
+      context,
+      title: 'Rezervacija',
+      message: book.availableCopies > 0
+          ? 'Rezervisati knjigu "${book.title}"?'
+          : 'Poslati zahtjev za rezervaciju knjige "${book.title}"?',
+      confirmText: 'Pošalji',
+    );
+    if (!yes || !mounted) return;
+
+    setState(() => _reserving = true);
 
     final ok = await runAction(
       context,
@@ -93,6 +114,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     if (!mounted) return;
     setState(() => _reserving = false);
     if (ok) context.read<AppState>().refreshUnread();
+    await _loadCheck();
   }
 
   @override
@@ -160,10 +182,15 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
       ),
       const SizedBox(height: 12),
       FilledButton.icon(
-        onPressed: _reserving ? null : _reserve,
+        onPressed: _reserving || _check?.canReserve == false ? null : _reserve,
         icon: const Icon(Icons.bookmark_add),
         label: Text(available ? 'Rezerviši' : 'Pošalji zahtjev za rezervaciju'),
       ),
+      if (_check?.canReserve == false && _check?.reason != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(_check!.reason!, key: const ValueKey('reserve-reason'), style: TextStyle(color: scheme.error)),
+        ),
       if (book.description != null) ...[
         const SizedBox(height: 20),
         Text('O knjizi', style: Theme.of(context).textTheme.titleMedium),

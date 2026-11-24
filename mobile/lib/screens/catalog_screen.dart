@@ -22,7 +22,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
   final List<BookItem> _books = [];
   List<Lookup> _categories = [];
   int? _categoryId;
-  bool _onlyAvailable = false;
+  bool? _available;
 
   int _page = 0;
   int _total = 0;
@@ -81,7 +81,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
         pageSize: _pageSize,
         search: _search.text.trim(),
         categoryId: _categoryId,
-        onlyAvailable: _onlyAvailable,
+        available: _available,
       );
       if (!mounted) return;
       setState(() {
@@ -122,42 +122,44 @@ class _CatalogScreenState extends State<CatalogScreen> {
             onSubmitted: (_) => _reload(),
           ),
         ),
-        SizedBox(
-          height: 48,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            children: [
-              FilterChip(
-                label: const Text('Samo dostupne'),
-                selected: _onlyAvailable,
-                onSelected: (v) {
-                  setState(() => _onlyAvailable = v);
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+          child: Row(children: [
+            Expanded(
+              child: DropdownButtonFormField<int?>(
+                key: const ValueKey('catalog-category'),
+                initialValue: _categoryId,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Kategorija', border: OutlineInputBorder(), isDense: true),
+                items: [
+                  const DropdownMenuItem<int?>(value: null, child: Text('Sve kategorije')),
+                  for (final c in _categories) DropdownMenuItem<int?>(value: c.id, child: Text(c.name)),
+                ],
+                onChanged: (v) {
+                  setState(() => _categoryId = v);
                   _reload();
                 },
               ),
-              const SizedBox(width: 8),
-              ChoiceChip(
-                label: const Text('Sve kategorije'),
-                selected: _categoryId == null,
-                onSelected: (_) {
-                  setState(() => _categoryId = null);
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: DropdownButtonFormField<bool?>(
+                key: const ValueKey('catalog-availability'),
+                initialValue: _available,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Dostupnost', border: OutlineInputBorder(), isDense: true),
+                items: const [
+                  DropdownMenuItem<bool?>(value: null, child: Text('Sve')),
+                  DropdownMenuItem<bool?>(value: true, child: Text('Dostupne')),
+                  DropdownMenuItem<bool?>(value: false, child: Text('Nedostupne')),
+                ],
+                onChanged: (v) {
+                  setState(() => _available = v);
                   _reload();
                 },
               ),
-              for (final c in _categories) ...[
-                const SizedBox(width: 8),
-                ChoiceChip(
-                  label: Text(c.name),
-                  selected: _categoryId == c.id,
-                  onSelected: (_) {
-                    setState(() => _categoryId = c.id);
-                    _reload();
-                  },
-                ),
-              ],
-            ],
-          ),
+            ),
+          ]),
         ),
         Expanded(child: _content()),
       ]),

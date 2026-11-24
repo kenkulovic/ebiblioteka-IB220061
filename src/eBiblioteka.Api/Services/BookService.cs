@@ -43,11 +43,12 @@ public class BookService : IBookService
             books = books.Where(b => b.BookAuthors.Any(ba => ba.AuthorId == query.AuthorId.Value));
         }
 
-        if (query.OnlyAvailable)
+        if (query.Available.HasValue)
         {
-            books = books.Where(b => b.TotalCopies >
+            var wantAvailable = query.Available.Value;
+            books = books.Where(b => (b.TotalCopies >
                 _db.Loans.Count(l => l.BookId == b.Id && l.Status == LoanStatus.Active) +
-                _db.Reservations.Count(r => r.BookId == b.Id && r.Status == ReservationStatus.Confirmed));
+                _db.Reservations.Count(r => r.BookId == b.Id && r.Status == ReservationStatus.Confirmed)) == wantAvailable);
         }
 
         return await ProjectToListItem(books.OrderBy(b => b.Title)).ToPagedAsync(query);

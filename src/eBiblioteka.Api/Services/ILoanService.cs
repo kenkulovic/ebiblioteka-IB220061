@@ -10,6 +10,9 @@ public interface ILoanService
     Task<PagedResultDto<LoanDto>> GetMineAsync(int userId, LoanQueryDto query);
     Task<PagedResultDto<LoanDto>> GetAllAsync(LoanQueryDto query);
 
+    Task<IssueCheckDto> CheckIssueAsync(int userId, int bookId);
+    Task<ReturnPreviewDto> PreviewReturnAsync(int loanId);
+
     // Obavijest + e-mail članovima čiji rok povrata ističe sutra (svaki član dobije podsjetnik samo jednom po roku).
     Task<int> SendDueRemindersAsync();
 }

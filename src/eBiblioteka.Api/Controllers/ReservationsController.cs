@@ -27,6 +27,11 @@ public class ReservationsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
+    [HttpGet("check")]
+    [Authorize(Roles = Roles.Member)]
+    public async Task<ActionResult<ReserveCheckDto>> Check([FromQuery] int bookId)
+        => Ok(await _service.CheckAsync(User.GetUserId(), bookId));
+
     [HttpGet("mine")]
     [Authorize(Roles = Roles.Member)]
     public async Task<ActionResult<PagedResultDto<ReservationDto>>> GetMine([FromQuery] ReservationQueryDto query)

@@ -20,7 +20,7 @@ class _BooksScreenState extends State<BooksScreen> {
 
   List<Lookup> _categories = [];
   int? _categoryId;
-  bool _onlyAvailable = false;
+  bool? _available;
 
   @override
   void initState() {
@@ -90,13 +90,23 @@ class _BooksScreenState extends State<BooksScreen> {
             },
           ),
         ),
-        FilterChip(
-          label: const Text('Samo dostupne'),
-          selected: _onlyAvailable,
-          onSelected: (value) {
-            setState(() => _onlyAvailable = value);
-            _listKey.currentState?.load(page: 1);
-          },
+        SizedBox(
+          width: 170,
+          child: DropdownButtonFormField<bool?>(
+            key: const ValueKey('book-availability'),
+            initialValue: _available,
+            isDense: true,
+            decoration: const InputDecoration(labelText: 'Dostupnost', border: OutlineInputBorder(), isDense: true),
+            items: const [
+              DropdownMenuItem<bool?>(value: null, child: Text('Sve')),
+              DropdownMenuItem<bool?>(value: true, child: Text('Dostupne')),
+              DropdownMenuItem<bool?>(value: false, child: Text('Nedostupne')),
+            ],
+            onChanged: (value) {
+              setState(() => _available = value);
+              _listKey.currentState?.load(page: 1);
+            },
+          ),
         ),
       ],
       trailing: [
@@ -107,7 +117,7 @@ class _BooksScreenState extends State<BooksScreen> {
         page: page,
         search: search,
         categoryId: _categoryId,
-        onlyAvailable: _onlyAvailable,
+        available: _available,
       ),
       rowBuilder: (book, reload) => DataRow(cells: [
         DataCell(ApiImage(url: book.hasCover ? api.bookCoverUrl(book.id) : null)),

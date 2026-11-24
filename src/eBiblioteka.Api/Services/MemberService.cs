@@ -41,6 +41,11 @@ public class MemberService : IMemberService
             members = members.Where(u => u.IsBlocked == query.IsBlocked.Value);
         }
 
+        if (query.CityId.HasValue)
+        {
+            members = members.Where(u => u.CityId == query.CityId.Value);
+        }
+
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var search = query.Search.Trim();

@@ -27,7 +27,7 @@ public class CountryService : ICountryService
 
         return await countries
             .OrderBy(c => c.Name)
-            .Select(c => new LookupDto { Id = c.Id, Name = c.Name })
+            .Select(c => new LookupDto { Id = c.Id, Name = c.Name, UsageCount = _db.Cities.Count(x => x.CountryId == c.Id) + _db.Authors.Count(a => a.CountryId == c.Id) })
             .ToPagedAsync(query);
     }
 
@@ -77,10 +77,12 @@ public class CountryService : ICountryService
         var country = await _db.Countries.FindAsync(id)
             ?? throw new NotFoundException("Država nije pronađena.");
 
-        if (await _db.Cities.AnyAsync(c => c.CountryId == id) ||
-            await _db.Authors.AnyAsync(a => a.CountryId == id))
+        var cityCount = await _db.Cities.CountAsync(c => c.CountryId == id);
+        var authorCount = await _db.Authors.CountAsync(a => a.CountryId == id);
+        if (cityCount + authorCount > 0)
         {
-            throw new ConflictException("Država se ne može obrisati jer je koriste gradovi ili autori.");
+            throw new ConflictException(
+                $"Država se ne može obrisati jer je koriste gradovi ({cityCount}) ili autori ({authorCount}).");
         }
 
         _db.Countries.Remove(country);

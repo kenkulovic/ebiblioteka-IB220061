@@ -29,6 +29,16 @@ public class LoansController : ControllerBase
     public async Task<ActionResult<PagedResultDto<LoanDto>>> GetAll([FromQuery] LoanQueryDto query)
         => Ok(await _service.GetAllAsync(query));
 
+    [HttpGet("issue-check")]
+    [Authorize(Roles = Roles.Administrator)]
+    public async Task<ActionResult<IssueCheckDto>> CheckIssue([FromQuery] int userId, [FromQuery] int bookId)
+        => Ok(await _service.CheckIssueAsync(userId, bookId));
+
+    [HttpGet("{id:int}/return-preview")]
+    [Authorize(Roles = Roles.Administrator)]
+    public async Task<ActionResult<ReturnPreviewDto>> PreviewReturn(int id)
+        => Ok(await _service.PreviewReturnAsync(id));
+
     [HttpGet("mine")]
     [Authorize(Roles = Roles.Member)]
     public async Task<ActionResult<PagedResultDto<LoanDto>>> GetMine([FromQuery] LoanQueryDto query)

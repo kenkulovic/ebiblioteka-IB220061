@@ -135,7 +135,7 @@ class LibraryApi {
     String? search,
     int? categoryId,
     int? authorId,
-    bool onlyAvailable = false,
+    bool? available,
   }) =>
       _page('/api/books', BookItem.fromJson,
           page: page,
@@ -144,7 +144,7 @@ class LibraryApi {
           extra: {
             'categoryId': categoryId,
             'authorId': authorId,
-            'onlyAvailable': onlyAvailable ? 'true' : null,
+            'available': available,
           });
 
   Future<BookDetails> book(int id) async =>
@@ -201,9 +201,10 @@ class LibraryApi {
 
   // ----------------------------------------------------------------- Clanovi
 
-  Future<PagedResult<Member>> members({int page = 1, int pageSize = 10, String? search, bool? isBlocked}) =>
+  Future<PagedResult<Member>> members(
+          {int page = 1, int pageSize = 10, String? search, bool? isBlocked, int? cityId}) =>
       _page('/api/members', Member.fromJson,
-          page: page, pageSize: pageSize, search: search, extra: {'isBlocked': isBlocked});
+          page: page, pageSize: pageSize, search: search, extra: {'isBlocked': isBlocked, 'cityId': cityId});
 
   Future<Member> me() async => Member.fromJson(await client.get('/api/members/me') as Map<String, dynamic>);
 
@@ -250,9 +251,14 @@ class LibraryApi {
       _page('/api/reservations/mine', Reservation.fromJson,
           page: page, pageSize: pageSize, extra: {'status': status});
 
-  Future<PagedResult<Reservation>> reservations({int page = 1, int pageSize = 10, String? search, String? status}) =>
+  Future<PagedResult<Reservation>> reservations(
+          {int page = 1, int pageSize = 10, String? search, String? status, int? userId}) =>
       _page('/api/reservations', Reservation.fromJson,
-          page: page, pageSize: pageSize, search: search, extra: {'status': status});
+          page: page, pageSize: pageSize, search: search, extra: {'status': status, 'userId': userId});
+
+  /// Može li prijavljeni član rezervisati knjigu (i zašto ne).
+  Future<ReserveCheck> reserveCheck(int bookId) async =>
+      ReserveCheck.fromJson(await client.get('/api/reservations/check', query: {'bookId': bookId}) as Map<String, dynamic>);
 
   Future<Reservation> reservation(int id) async =>
       Reservation.fromJson(await client.get('/api/reservations/$id') as Map<String, dynamic>);
@@ -270,8 +276,16 @@ class LibraryApi {
       Loan.fromJson(await client.post('/api/loans',
           body: {'reservationId': reservationId, 'userId': userId, 'bookId': bookId}) as Map<String, dynamic>);
 
-  Future<PagedResult<Loan>> loans({int page = 1, int pageSize = 10, String? search, String? filter}) =>
-      _page('/api/loans', Loan.fromJson, page: page, pageSize: pageSize, search: search, extra: {'filter': filter});
+  Future<PagedResult<Loan>> loans(
+          {int page = 1, int pageSize = 10, String? search, String? filter, int? userId}) =>
+      _page('/api/loans', Loan.fromJson,
+          page: page, pageSize: pageSize, search: search, extra: {'filter': filter, 'userId': userId});
+
+  Future<IssueCheck> issueCheck(int userId, int bookId) async => IssueCheck.fromJson(
+      await client.get('/api/loans/issue-check', query: {'userId': userId, 'bookId': bookId}) as Map<String, dynamic>);
+
+  Future<ReturnPreview> returnPreview(int loanId) async =>
+      ReturnPreview.fromJson(await client.get('/api/loans/$loanId/return-preview') as Map<String, dynamic>);
 
   Future<PagedResult<Loan>> myLoans({int page = 1, int pageSize = 10, String? filter}) =>
       _page('/api/loans/mine', Loan.fromJson, page: page, pageSize: pageSize, extra: {'filter': filter});
@@ -284,8 +298,9 @@ class LibraryApi {
 
   // ---------------------------------------------------------- Zakasnine i uplate
 
-  Future<PagedResult<Fine>> fines({int page = 1, int pageSize = 10, String? search, String? status}) =>
-      _page('/api/fines', Fine.fromJson, page: page, pageSize: pageSize, search: search, extra: {'status': status});
+  Future<PagedResult<Fine>> fines({int page = 1, int pageSize = 10, String? search, String? status, int? userId}) =>
+      _page('/api/fines', Fine.fromJson,
+          page: page, pageSize: pageSize, search: search, extra: {'status': status, 'userId': userId});
 
   Future<PagedResult<Fine>> myFines({int page = 1, int pageSize = 20, String? status}) =>
       _page('/api/fines/mine', Fine.fromJson, page: page, pageSize: pageSize, extra: {'status': status});

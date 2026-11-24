@@ -4,5 +4,6 @@ public class BookQueryDto : PagedQueryDto
 {
     public int? CategoryId { get; set; }
     public int? AuthorId { get; set; }
-    public bool OnlyAvailable { get; set; }
+    // null = sve knjige, true = samo dostupne, false = samo nedostupne.
+    public bool? Available { get; set; }
 }

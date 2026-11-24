@@ -115,6 +115,44 @@ void main() {
     expect((await admin.fineReportPdf(from, to, status: 'Paid')).length, greaterThan(1000));
   });
 
+  test('provjere pravila, pregled povrata, filteri i brojaci upotrebe', () async {
+    // Dostupnost: sve / dostupne / nedostupne.
+    final all = await admin.books(pageSize: 50);
+    final available = await admin.books(pageSize: 50, available: true);
+    final unavailable = await admin.books(pageSize: 50, available: false);
+    expect(available.totalCount + unavailable.totalCount, all.totalCount);
+    expect(available.items.every((b) => b.availableCopies > 0), isTrue);
+    expect(unavailable.items.every((b) => b.availableCopies == 0), isTrue);
+
+    // Brojaci upotrebe u sifarnicima.
+    final categories = await admin.lookups('categories', pageSize: 100);
+    expect(categories.items.any((c) => c.usageCount > 0), isTrue);
+
+    // Filter clanova po gradu i historija jednog clana.
+    final members = await admin.members(pageSize: 50);
+    final first = members.items.firstWhere((m) => m.activeLoans > 0);
+    final inCity = await admin.members(cityId: first.cityId, pageSize: 50);
+    expect(inCity.items.every((m) => m.cityId == first.cityId), isTrue);
+    final loans = await admin.loans(userId: first.id, pageSize: 50);
+    expect(loans.items, isNotEmpty);
+    expect(loans.items.every((l) => l.userId == first.id), isTrue);
+
+    // Provjera pravila prije izdavanja i pregled povrata.
+    final active = loans.items.firstWhere((l) => l.isActive);
+    final check = await admin.issueCheck(first.id, active.bookId);
+    expect(check.canIssue, isFalse);
+    expect(check.problems, isNotEmpty);
+    final preview = await admin.returnPreview(active.id);
+    expect(preview.daysLate, greaterThanOrEqualTo(0));
+
+    // Provjera rezervacije za clana: knjiga koju vec ima posudjenu ne moze se rezervisati.
+    final mine = await member.myLoans(pageSize: 50);
+    final borrowed = mine.items.firstWhere((l) => l.isActive);
+    final reserve = await member.reserveCheck(borrowed.bookId);
+    expect(reserve.canReserve, isFalse);
+    expect(reserve.reason, isNotNull);
+  });
+
   test('greske servera stizu kao ApiException s porukom', () async {
     await expectLater(
       () => member.createReservation(999999),

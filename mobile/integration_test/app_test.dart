@@ -186,12 +186,14 @@ void main() {
     await waitFor(tester, find.text('Slične knjige'));
 
     await tapVisible(tester, find.widgetWithText(FilledButton, 'Rezerviši'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Pošalji'));
     await waitFor(tester, find.textContaining('Rezervacija je poslana'));
     await waitGone(tester, find.textContaining('Rezervacija je poslana'));
 
-    // Ista knjiga ponovo: server odbija s razlogom.
-    await tapVisible(tester, find.widgetWithText(FilledButton, 'Rezerviši'));
-    await waitFor(tester, find.textContaining('Već imate otvorenu rezervaciju'));
+    // Ista knjiga ponovo: dugme je onemogućeno uz objašnjenje razloga.
+    await waitFor(tester, find.byKey(const ValueKey('reserve-reason')));
+    expect(find.textContaining('Već imate otvorenu rezervaciju'), findsOneWidget);
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Rezerviši')).onPressed, isNull);
 
     await goBack(tester);
     await settle(tester);
@@ -325,8 +327,9 @@ void main() {
     await waitFor(tester, find.text('Orlovi rano lete'));
     await tester.tap(find.text('Orlovi rano lete'));
     await waitFor(tester, find.widgetWithText(FilledButton, 'Rezerviši'));
-    await tapVisible(tester, find.widgetWithText(FilledButton, 'Rezerviši'));
-    await waitFor(tester, find.textContaining('neplaćena zakasnina'));
+    await waitFor(tester, find.byKey(const ValueKey('reserve-reason')));
+    expect(find.textContaining('neplaćena zakasnina'), findsOneWidget);
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Rezerviši')).onPressed, isNull);
     await goBack(tester);
     await settle(tester);
 

@@ -88,6 +88,11 @@ public class FineService : IFineService
         FineQueryDto query,
         bool includeMemberSearch)
     {
+        if (query.UserId.HasValue)
+        {
+            fines = fines.Where(f => f.UserId == query.UserId.Value);
+        }
+
         if (query.Status.HasValue)
         {
             fines = fines.Where(f => f.Status == query.Status.Value);

@@ -241,6 +241,86 @@ public class LoanService : ILoanService
         return await GetDtoAsync(loanId);
     }
 
+    public async Task<IssueCheckDto> CheckIssueAsync(int userId, int bookId)
+    {
+        var totalCopies = await _db.Books.AsNoTracking()
+            .Where(b => b.Id == bookId)
+            .Select(b => (int?)b.TotalCopies)
+            .FirstOrDefaultAsync()
+            ?? throw new NotFoundException("Knjiga nije pronađena.");
+
+        var activeLoans = await _db.Loans.CountAsync(l => l.UserId == userId && l.Status == LoanStatus.Active);
+        var unpaid = await _db.Fines.CountAsync(f => f.UserId == userId && f.Status == FineStatus.Unpaid);
+        var taken = await _db.Loans.CountAsync(l => l.BookId == bookId && l.Status == LoanStatus.Active)
+            + await _db.Reservations.CountAsync(r => r.BookId == bookId && r.Status == ReservationStatus.Confirmed);
+        var available = Math.Max(0, totalCopies - taken);
+
+        var problems = new List<string>();
+
+        var restriction = await _eligibility.GetRestrictionAsync(userId);
+        if (restriction != null)
+        {
+            problems.Add(restriction);
+        }
+
+        if (activeLoans >= LibraryRules.MaxActiveLoans)
+        {
+            problems.Add($"Član već ima {LibraryRules.MaxActiveLoans} aktivne posudbe (najviše dozvoljeno).");
+        }
+
+        if (await _db.Loans.AnyAsync(l => l.UserId == userId && l.BookId == bookId && l.Status == LoanStatus.Active))
+        {
+            problems.Add("Član već ima ovu knjigu posuđenu.");
+        }
+
+        if (await _db.Reservations.AnyAsync(r =>
+                r.UserId == userId && r.BookId == bookId &&
+                (r.Status == ReservationStatus.Pending || r.Status == ReservationStatus.Confirmed)))
+        {
+            problems.Add("Član ima otvorenu rezervaciju ove knjige. Preuzimanje se evidentira kroz rezervaciju.");
+        }
+
+        if (available == 0)
+        {
+            problems.Add("Nema slobodnih primjeraka ove knjige.");
+        }
+
+        return new IssueCheckDto
+        {
+            ActiveLoans = activeLoans,
+            MaxActiveLoans = LibraryRules.MaxActiveLoans,
+            UnpaidFines = unpaid,
+            AvailableCopies = available,
+            CanIssue = problems.Count == 0,
+            Problems = problems
+        };
+    }
+
+    public async Task<ReturnPreviewDto> PreviewReturnAsync(int loanId)
+    {
+        var loan = await _db.Loans.AsNoTracking()
+            .Where(l => l.Id == loanId)
+            .Select(l => new { l.DueDate, l.Status })
+            .FirstOrDefaultAsync()
+            ?? throw new NotFoundException("Posudba nije pronađena.");
+
+        if (loan.Status != LoanStatus.Active)
+        {
+            throw new ConflictException("Posudba je već vraćena.");
+        }
+
+        var returnDate = DateTime.UtcNow;
+        var (daysLate, amount) = FineCalculator.Calculate(loan.DueDate, returnDate);
+
+        return new ReturnPreviewDto
+        {
+            DueDate = loan.DueDate,
+            ReturnDate = returnDate,
+            DaysLate = daysLate,
+            FineAmountKm = amount
+        };
+    }
+
     public async Task<int> SendDueRemindersAsync()
     {
         var tomorrow = DateTime.UtcNow.Date.AddDays(1);
@@ -282,6 +362,11 @@ public class LoanService : ILoanService
     private IQueryable<LoanDto> FilterAndProject(IQueryable<Loan> loans, LoanQueryDto query, bool includeMemberSearch)
     {
         var today = DateTime.UtcNow.Date;
+
+        if (query.UserId.HasValue)
+        {
+            loans = loans.Where(l => l.UserId == query.UserId.Value);
+        }
 
         if (query.Filter.HasValue)
         {
