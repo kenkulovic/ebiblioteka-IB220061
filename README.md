@@ -16,6 +16,16 @@ Autor: Kenan Kulović, IB220061.
 | `common/ebiblioteka_api` | Dart paket s modelima i API klijentom koji dijele obje aplikacije |
 | `recommender-dokumentacija.md` | Opis sistema preporuke |
 
+## Uloge
+
+| Uloga | Aplikacija | Šta radi |
+|---|---|---|
+| Administrator (bibliotekar) | Desktop | Knjige, autori, članovi (blokiranje), izdavanje i povrat knjiga, rezervacije, zakasnine i povrat PayPal uplata, vijesti, šifarnici, PDF izvještaji |
+| Član | Mobilna | Registracija, katalog, rezervacija, posudbe i produženje, ocjenjivanje, preporuke, plaćanje zakasnina putem PayPal-a, obavijesti, profil |
+
+Desktop aplikacija odbija račun koji nije administrator, a mobilna račun koji nije član. Pristup je ograničen na serveru
+(`[Authorize(Roles = ...)]`), a ne samo u aplikacijama.
+
 ## Šta je potrebno
 
 - Docker Desktop
@@ -125,6 +135,12 @@ povrata, obavijest o zakasnini, uplati, povratu i potvrdi rezervacije, kod za re
 Ako slanje ne uspije, Worker ponavlja pokušaj s eksponencijalnim razmakom (2 s, 4 s, ...), a poruka koja ne uspije ni
 nakon tri pokušaja ide u red `ebiblioteka.email.dead` radi ručnog pregleda. Podsjetnik o roku povrata šalje pozadinski
 posao API-ja (svaki sat; jednom po roku, a produženje roka traži novi podsjetnik).
+
+| RabbitMQ red | Svrha |
+|---|---|
+| `ebiblioteka.email` | E-mailovi koje API stavlja u red, a Worker ih šalje (trajan red, potvrde pri objavi) |
+| `ebiblioteka.email.dead` | Poruke koje nisu poslane ni nakon tri pokušaja, za ručni pregled |
+
 
 ## Testovi
 
