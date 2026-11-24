@@ -186,6 +186,7 @@ void main() {
     await waitFor(tester, find.text('Slične knjige'));
 
     await tapVisible(tester, find.widgetWithText(FilledButton, 'Rezerviši'));
+    await waitFor(tester, find.widgetWithText(FilledButton, 'Pošalji'));
     await tester.tap(find.widgetWithText(FilledButton, 'Pošalji'));
     await waitFor(tester, find.textContaining('Rezervacija je poslana'));
     await waitGone(tester, find.textContaining('Rezervacija je poslana'));
