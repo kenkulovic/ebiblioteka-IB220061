@@ -228,6 +228,8 @@ public class LoanService : ILoanService
 
         loan.DueDate = loan.DueDate.AddDays(LibraryRules.ExtensionDays);
         loan.ExtensionCount++;
+        // Novi rok traži novi podsjetnik.
+        loan.ReminderSentAt = null;
 
         _notifications.Add(userId, "Posudba produžena",
             $"Posudba knjige \"{loan.Book.Title}\" produžena je do {loan.DueDate:dd.MM.yyyy}.");
@@ -237,6 +239,32 @@ public class LoanService : ILoanService
         _logger.LogInformation("Produžena posudba {LoanId} (član {UserId})", loanId, userId);
 
         return await GetDtoAsync(loanId);
+    }
+
+    public async Task<int> SendDueRemindersAsync()
+    {
+        var tomorrow = DateTime.UtcNow.Date.AddDays(1);
+        var due = await _db.Loans.Include(l => l.Book)
+            .Where(l => l.Status == LoanStatus.Active && l.ReminderSentAt == null &&
+                        l.DueDate >= tomorrow && l.DueDate < tomorrow.AddDays(1))
+            .ToListAsync();
+
+        foreach (var loan in due)
+        {
+            loan.ReminderSentAt = DateTime.UtcNow;
+            _notifications.AddWithEmail(loan.UserId, "Rok povrata ističe sutra",
+                $"Rok povrata knjige \"{loan.Book.Title}\" ističe sutra ({loan.DueDate:dd.MM.yyyy}). " +
+                "Vratite je na vrijeme kako biste izbjegli zakasninu.");
+        }
+
+        if (due.Count > 0)
+        {
+            await _db.SaveChangesAsync();
+            await _notifications.SendPendingEmailsAsync();
+            _logger.LogInformation("Poslano {Count} podsjetnika o roku povrata", due.Count);
+        }
+
+        return due.Count;
     }
 
     public async Task<PagedResultDto<LoanDto>> GetMineAsync(int userId, LoanQueryDto query)

@@ -1,4 +1,4 @@
-﻿using System.Data;
+using System.Data;
 using eBiblioteka.Api.Constants;
 using eBiblioteka.Api.Data;
 using eBiblioteka.Api.Data.Entities;
@@ -20,6 +20,7 @@ public class AuthService : IAuthService
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IJwtService _jwtService;
     private readonly IEmailQueue _emailQueue;
+    private readonly ITokenRevocationService _revocation;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(
@@ -27,12 +28,14 @@ public class AuthService : IAuthService
         UserManager<ApplicationUser> userManager,
         IJwtService jwtService,
         IEmailQueue emailQueue,
+        ITokenRevocationService revocation,
         ILogger<AuthService> logger)
     {
         _db = db;
         _userManager = userManager;
         _jwtService = jwtService;
         _emailQueue = emailQueue;
+        _revocation = revocation;
         _logger = logger;
     }
 
@@ -86,6 +89,7 @@ public class AuthService : IAuthService
             FirstName = dto.FirstName.Trim(),
             LastName = dto.LastName.Trim(),
             CityId = dto.CityId,
+            PhoneNumber = string.IsNullOrWhiteSpace(dto.PhoneNumber) ? null : dto.PhoneNumber.Trim(),
             MembershipNumber = await NextMembershipNumberAsync(),
             CreatedAt = DateTime.UtcNow
         };
@@ -104,11 +108,27 @@ public class AuthService : IAuthService
 
         await transaction.CommitAsync();
 
+        var welcome = $"Poštovani/a {user.FirstName},\n\n" +
+                      $"Dobrodošli u eBiblioteku! Vaš broj članske karte je {user.MembershipNumber}.\n" +
+                      "Možete pretraživati knjige, rezervisati ih i pratiti svoje posudbe u aplikaciji.\n\n" +
+                      "eBiblioteka";
+        try
+        {
+            await _emailQueue.EnqueueAsync(new EmailMessage(user.Email!, "Dobrodošli u eBiblioteku", welcome));
+        }
+        catch (Exception ex)
+        {
+            // Registracija je uspjela; neuspjelo slanje e-maila dobrodošlice je ne smije poništiti.
+            _logger.LogWarning(ex, "E-mail dobrodošlice nije stavljen u red za korisnika {UserId}", user.Id);
+        }
+
         _logger.LogInformation("Registrovan novi član {UserName} ({MembershipNumber})",
             user.UserName, user.MembershipNumber);
 
         return await LoginAsync(new LoginRequestDto { UserName = dto.UserName.Trim(), Password = dto.Password });
     }
+
+    public Task LogoutAsync(string accessToken) => _revocation.RevokeAsync(accessToken);
 
     public async Task ForgotPasswordAsync(ForgotPasswordDto dto)
     {

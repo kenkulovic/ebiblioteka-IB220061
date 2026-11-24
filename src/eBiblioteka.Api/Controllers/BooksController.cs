@@ -1,5 +1,7 @@
 using eBiblioteka.Api.Constants;
 using eBiblioteka.Api.Dtos;
+using eBiblioteka.Api.Exceptions;
+using eBiblioteka.Api.Helpers;
 using eBiblioteka.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -58,6 +60,11 @@ public class BooksController : ControllerBase
     [Authorize(Roles = Roles.Administrator)]
     public async Task<IActionResult> SetCover(int id, IFormFile file)
     {
+        if (!ImageFormat.IsAllowedContentType(file.ContentType))
+        {
+            throw new BadRequestException("Dozvoljeni formati slike su PNG i JPEG.");
+        }
+
         await using var stream = file.OpenReadStream();
         await _service.SetCoverAsync(id, stream, file.Length);
         return NoContent();

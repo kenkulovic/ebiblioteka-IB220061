@@ -9,7 +9,7 @@ public static class LibraryRules
     public const int MaxActiveLoans = 3;
     public const int MaxOpenReservations = 3;
     public const int PickupDays = 3;
-    public const int MinReasonLength = 5;
+    public const int MinReasonLength = 10;
 
     public const int MinRefundReasonLength = 10;
     public const int PendingPaymentMinutes = 30;

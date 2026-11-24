@@ -1,5 +1,6 @@
 using eBiblioteka.Api.Dtos;
 using eBiblioteka.Api.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -22,6 +23,20 @@ public class AuthController : ControllerBase
     {
         var response = await _authService.LoginAsync(request);
         return Ok(response);
+    }
+
+    // Odjava poništava token na serveru: isti token se više ne prihvata.
+    [Authorize]
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout()
+    {
+        var token = await HttpContext.GetTokenAsync("access_token");
+        if (token != null)
+        {
+            await _authService.LogoutAsync(token);
+        }
+
+        return NoContent();
     }
 
     [AllowAnonymous]

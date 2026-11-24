@@ -37,7 +37,7 @@ Future<bool> confirm(
   final result = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
-      title: Text(title),
+      title: DialogTitle(title),
       content: Text(message),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Otkaži')),
@@ -73,3 +73,25 @@ class RatingStars extends StatelessWidget {
 }
 
 String ratingText(double? rating) => rating == null ? 'Bez ocjena' : rating.toStringAsFixed(1).replaceAll('.', ',');
+
+/// Naslov dijaloga s dugmetom "X" za zatvaranje (zatvara dijalog bez promjene).
+class DialogTitle extends StatelessWidget {
+  const DialogTitle(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: Text(text)),
+        IconButton(
+          key: const ValueKey('dialog-close'),
+          tooltip: 'Zatvori',
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.maybePop(context),
+        ),
+      ],
+    );
+  }
+}

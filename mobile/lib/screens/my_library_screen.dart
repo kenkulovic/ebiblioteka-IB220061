@@ -258,7 +258,7 @@ class _RatingDialogState extends State<_RatingDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Ocijenite: ${widget.title}'),
+      title: DialogTitle('Ocijenite: ${widget.title}'),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
         RatingStars(rating: _rating.toDouble(), size: 36, onChanged: (v) => setState(() => _rating = v)),
         const SizedBox(height: 12),

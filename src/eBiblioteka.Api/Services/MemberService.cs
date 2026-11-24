@@ -71,6 +71,7 @@ public class MemberService : IMemberService
         user.FirstName = dto.FirstName.Trim();
         user.LastName = dto.LastName.Trim();
         user.CityId = dto.CityId;
+        user.PhoneNumber = string.IsNullOrWhiteSpace(dto.PhoneNumber) ? null : dto.PhoneNumber.Trim();
 
         var email = dto.Email.Trim();
         if (!string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase))
@@ -223,6 +224,7 @@ public class MemberService : IMemberService
             FirstName = u.FirstName,
             LastName = u.LastName,
             Email = u.Email ?? string.Empty,
+            PhoneNumber = u.PhoneNumber,
             MembershipNumber = u.MembershipNumber,
             CityId = u.CityId,
             CityName = u.City.Name,

@@ -24,7 +24,7 @@ class _MembersScreenState extends State<MembersScreen> {
       title: 'Blokiranje člana',
       description: '${member.fullName} (${member.membershipNumber}) neće moći rezervisati ni posuđivati knjige.',
       hint: 'Razlog blokiranja',
-      minLength: 5,
+      minLength: 10,
       confirmText: 'Blokiraj',
     );
     if (reason == null || !mounted) return;

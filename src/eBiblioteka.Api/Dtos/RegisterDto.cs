@@ -27,4 +27,7 @@ public class RegisterDto
 
     [Range(1, int.MaxValue, ErrorMessage = "Grad je obavezan.")]
     public int CityId { get; set; }
+
+    [RegularExpression(@"^\+?[0-9 /-]{6,20}$", ErrorMessage = "Broj telefona nije ispravan.")]
+    public string? PhoneNumber { get; set; }
 }

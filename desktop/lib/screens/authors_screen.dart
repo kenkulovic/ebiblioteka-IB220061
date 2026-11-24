@@ -151,7 +151,7 @@ class _AuthorDialogState extends State<_AuthorDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.author == null ? 'Novi autor' : 'Izmjena autora'),
+      title: DialogTitle(widget.author == null ? 'Novi autor' : 'Izmjena autora'),
       content: SizedBox(
         width: 460,
         child: _loading

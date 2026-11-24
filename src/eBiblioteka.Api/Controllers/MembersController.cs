@@ -1,5 +1,7 @@
 using eBiblioteka.Api.Constants;
 using eBiblioteka.Api.Dtos;
+using eBiblioteka.Api.Exceptions;
+using eBiblioteka.Api.Helpers;
 using eBiblioteka.Api.Extensions;
 using eBiblioteka.Api.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -54,6 +56,11 @@ public class MembersController : ControllerBase
     [HttpPut("me/image")]
     public async Task<IActionResult> SetImage(IFormFile file)
     {
+        if (!ImageFormat.IsAllowedContentType(file.ContentType))
+        {
+            throw new BadRequestException("Dozvoljeni formati slike su PNG i JPEG.");
+        }
+
         await using var stream = file.OpenReadStream();
         await _service.SetImageAsync(User.GetUserId(), stream, file.Length);
         return NoContent();

@@ -7,7 +7,7 @@ import 'package:material_ui/material_ui.dart';
 class AppState extends ChangeNotifier {
   AppState(this.api) {
     // Ako server odbije token (istekao), korisnik se vraća na prijavu.
-    api.client.onUnauthorized = logout;
+    api.client.onUnauthorized = _clearSession;
   }
 
   static const _pollInterval = Duration(seconds: 20);
@@ -30,6 +30,7 @@ class AppState extends ChangeNotifier {
     required String firstName,
     required String lastName,
     required int cityId,
+    String? phoneNumber,
   }) async {
     _accept(await api.register(
       userName: userName,
@@ -38,6 +39,7 @@ class AppState extends ChangeNotifier {
       firstName: firstName,
       lastName: lastName,
       cityId: cityId,
+      phoneNumber: phoneNumber,
     ));
   }
 
@@ -68,7 +70,15 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Odjava: server poništava token, a lokalno se briše sesija.
   void logout() {
+    if (api.client.token != null) {
+      unawaited(api.logout());
+    }
+    _clearSession();
+  }
+
+  void _clearSession() {
     _poller?.cancel();
     _poller = null;
     api.client.token = null;

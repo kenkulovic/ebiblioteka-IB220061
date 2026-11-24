@@ -129,7 +129,8 @@ public class EmailConsumer : BackgroundService
                 _logger.LogWarning(ex, "Slanje e-maila na {To} nije uspjelo (pokušaj {Attempt}/{Max}), ponavljam",
                     message.To, attempts, MaxAttempts);
 
-                await Task.Delay(TimeSpan.FromSeconds(2 * attempts), stoppingToken);
+                // Eksponencijalni backoff: 2s, 4s, 8s ... (2^pokušaj sekundi).
+                await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempts)), stoppingToken);
                 await PublishAsync(channel, QueueNames.Email, args.Body, args.BasicProperties, attempts, stoppingToken);
             }
             else

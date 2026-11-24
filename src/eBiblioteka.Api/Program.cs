@@ -5,6 +5,7 @@ using eBiblioteka.Api.Middleware;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using System.Text;
 using eBiblioteka.Api.Services;
 using eBiblioteka.Api.Services.Email;
@@ -15,6 +16,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 // NoClobber: prave varijable okruženja (npr. iz Dockera) imaju prednost nad .env fajlom.
 DotNetEnv.Env.NoClobber().TraversePath().Load();
+
+const string CorsPolicy = "Clients";
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,6 +47,7 @@ builder.Services
     .AddDefaultTokenProviders();
 
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<ITokenRevocationService, TokenRevocationService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICountryService, CountryService>();
 builder.Services.AddScoped<ICityService, CityService>();
@@ -70,6 +74,7 @@ builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddSingleton<RecalculationTrigger>();
 builder.Services.AddSingleton<IRecalculationTrigger>(sp => sp.GetRequiredService<RecalculationTrigger>());
 builder.Services.AddHostedService<ReservationExpirationJob>();
+builder.Services.AddHostedService<LoanReminderJob>();
 builder.Services.AddHostedService<SimilarityRecalculationJob>();
 
 builder.Services
@@ -87,9 +92,29 @@ builder.Services
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
         };
+
+        // Pored potpisa i roka, provjerava se da token nije poništen odjavom i da račun nije blokiran.
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var revocation = context.HttpContext.RequestServices.GetRequiredService<ITokenRevocationService>();
+                var userId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                if (!int.TryParse(userId, out var id) || !await revocation.IsTokenValidAsync(context.SecurityToken.Id, id))
+                {
+                    context.Fail("Token je poništen ili je račun blokiran.");
+                }
+            }
+        };
     });
 
 builder.Services.AddAuthorization();
+
+// CORS se definiše jednom, s izričito navedenim dozvoljenim originima (iz .env).
+var corsOrigins = Required("CORS_ORIGINS").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+builder.Services.AddCors(options => options.AddPolicy(CorsPolicy, policy =>
+    policy.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod()));
 
 var app = builder.Build();
 
@@ -105,6 +130,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseHttpsRedirection();
+app.UseCors(CorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

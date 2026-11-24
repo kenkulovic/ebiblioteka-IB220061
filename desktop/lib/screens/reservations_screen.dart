@@ -32,7 +32,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
       title: r.status == 'Pending' ? 'Odbijanje zahtjeva' : 'Otkazivanje rezervacije',
       description: '"${r.bookTitle}" – ${r.userFullName}. Član će dobiti obavijest s razlogom.',
       hint: 'Razlog (obavezan)',
-      minLength: 5,
+      minLength: 10,
       confirmText: r.status == 'Pending' ? 'Odbij' : 'Otkaži rezervaciju',
     );
     if (reason == null || !mounted) return;
@@ -129,7 +129,7 @@ class _HistoryDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Historija: ${reservation.bookTitle}'),
+      title: DialogTitle('Historija: ${reservation.bookTitle}'),
       content: SizedBox(
         width: 520,
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [

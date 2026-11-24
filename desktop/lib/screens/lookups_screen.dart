@@ -270,7 +270,7 @@ class _LookupFormDialogState extends State<_LookupFormDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.title),
+      title: DialogTitle(widget.title),
       content: SizedBox(
         width: 420,
         child: _loading

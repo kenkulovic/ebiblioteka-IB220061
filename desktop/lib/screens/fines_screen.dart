@@ -142,7 +142,7 @@ class _PaymentsDialogState extends State<_PaymentsDialog> {
     final fine = widget.fine;
 
     return AlertDialog(
-      title: Text('Uplate: ${fine.bookTitle}'),
+      title: DialogTitle('Uplate: ${fine.bookTitle}'),
       content: SizedBox(
         width: 620,
         child: _error != null

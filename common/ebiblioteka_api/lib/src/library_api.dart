@@ -35,6 +35,15 @@ class LibraryApi {
     return result;
   }
 
+  /// Poništava token na serveru. Greška se ignoriše: korisnik se svejedno odjavljuje lokalno.
+  Future<void> logout() async {
+    try {
+      await client.post('/api/auth/logout');
+    } on ApiException {
+      // Token je možda već istekao ili je server nedostupan.
+    }
+  }
+
   Future<LoginResult> register({
     required String userName,
     required String email,
@@ -42,6 +51,7 @@ class LibraryApi {
     required String firstName,
     required String lastName,
     required int cityId,
+    String? phoneNumber,
   }) async {
     final json = await client.post('/api/auth/register', body: {
       'userName': userName,
@@ -50,6 +60,7 @@ class LibraryApi {
       'firstName': firstName,
       'lastName': lastName,
       'cityId': cityId,
+      if (phoneNumber != null && phoneNumber.isNotEmpty) 'phoneNumber': phoneNumber,
     });
     final result = LoginResult.fromJson(json as Map<String, dynamic>);
     client.token = result.token;
@@ -205,12 +216,14 @@ class LibraryApi {
     required String lastName,
     required String email,
     required int cityId,
+    String? phoneNumber,
   }) async =>
       Member.fromJson(await client.put('/api/members/me', body: {
         'firstName': firstName,
         'lastName': lastName,
         'email': email,
         'cityId': cityId,
+        'phoneNumber': phoneNumber,
       }) as Map<String, dynamic>);
 
   Future<void> changePassword(String current, String next) =>

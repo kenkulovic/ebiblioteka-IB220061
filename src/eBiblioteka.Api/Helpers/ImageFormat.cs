@@ -5,6 +5,11 @@ public static class ImageFormat
     public const string Png = "image/png";
     public const string Jpeg = "image/jpeg";
 
+    // MIME tip koji klijent šalje mora biti PNG ili JPEG; sadržaj se zatim provjerava po magic bytes (Detect).
+    public static bool IsAllowedContentType(string? contentType) =>
+        string.Equals(contentType, Png, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(contentType, Jpeg, StringComparison.OrdinalIgnoreCase);
+
     // Tip slike se određuje po stvarnom sadržaju (prvi bajtovi), a ne po nazivu fajla koji šalje klijent.
     public static string? Detect(byte[] data)
     {

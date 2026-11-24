@@ -183,7 +183,7 @@ class _IssueLoanDialogState extends State<_IssueLoanDialog> with SingleTickerPro
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Izdavanje knjige'),
+      title: DialogTitle('Izdavanje knjige'),
       content: SizedBox(
         width: 560,
         height: 420,

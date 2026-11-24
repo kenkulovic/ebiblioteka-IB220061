@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart' show MediaType;
 
 /// Greska koju API vrati ili nastane pri komunikaciji. [message] je spreman za prikaz korisniku.
 class ApiException implements Exception {
@@ -80,12 +81,26 @@ class ApiClient {
       ..headers.addAll(authHeaders)
       ..fields.addAll(fields);
     for (final file in files) {
-      request.files.add(http.MultipartFile.fromBytes(file.field, file.bytes, filename: file.filename));
+      request.files.add(http.MultipartFile.fromBytes(
+        file.field,
+        file.bytes,
+        filename: file.filename,
+        contentType: _imageType(file.filename),
+      ));
     }
 
     final response = await _guard(() async => http.Response.fromStream(await _http.send(request)));
     _throwIfError(response);
     return _decode(response);
+  }
+
+  /// Server prihvata samo PNG i JPEG, pa se tip slike određuje po ekstenziji naziva.
+  static MediaType _imageType(String filename) {
+    final name = filename.toLowerCase();
+    if (name.endsWith('.jpg') || name.endsWith('.jpeg')) {
+      return MediaType('image', 'jpeg');
+    }
+    return MediaType('image', 'png');
   }
 
   Future<dynamic> _send(

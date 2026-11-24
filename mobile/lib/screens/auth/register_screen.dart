@@ -17,6 +17,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _lastName = TextEditingController();
   final _userName = TextEditingController();
   final _email = TextEditingController();
+  final _phone = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
 
@@ -33,7 +34,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
-    for (final c in [_firstName, _lastName, _userName, _email, _password, _confirm]) {
+    for (final c in [_firstName, _lastName, _userName, _email, _phone, _password, _confirm]) {
       c.dispose();
     }
     super.dispose();
@@ -64,6 +65,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             firstName: _firstName.text.trim(),
             lastName: _lastName.text.trim(),
             cityId: _cityId!,
+            phoneNumber: _phone.text.trim(),
           );
       // Uspješna registracija je i prijava: početni ekran se prikazuje automatski.
       if (mounted) Navigator.popUntil(context, (route) => route.isFirst);
@@ -121,6 +123,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 validator: (v) => (v == null || !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim()))
                     ? 'Unesite ispravnu e-mail adresu.'
                     : null,
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _phone,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(labelText: 'Telefon (nije obavezno)', border: OutlineInputBorder()),
+                validator: (v) => (v == null || v.trim().isEmpty || RegExp(r'^\+?[0-9 /-]{6,20}$').hasMatch(v.trim()))
+                    ? null
+                    : 'Unesite ispravan broj telefona.',
               ),
               const SizedBox(height: 14),
               TextFormField(

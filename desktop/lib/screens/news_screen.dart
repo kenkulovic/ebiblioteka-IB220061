@@ -141,7 +141,7 @@ class _NewsDialogState extends State<_NewsDialog> {
     final api = context.read<AppState>().api;
 
     return AlertDialog(
-      title: Text(widget.item == null ? 'Nova vijest' : 'Izmjena vijesti'),
+      title: DialogTitle(widget.item == null ? 'Nova vijest' : 'Izmjena vijesti'),
       content: SizedBox(
         width: 520,
         child: Form(

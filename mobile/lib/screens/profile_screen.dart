@@ -21,6 +21,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _firstName = TextEditingController();
   final _lastName = TextEditingController();
   final _email = TextEditingController();
+  final _phone = TextEditingController();
   final _currentPassword = TextEditingController();
   final _newPassword = TextEditingController();
 
@@ -41,7 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void dispose() {
-    for (final c in [_firstName, _lastName, _email, _currentPassword, _newPassword]) {
+    for (final c in [_firstName, _lastName, _email, _phone, _currentPassword, _newPassword]) {
       c.dispose();
     }
     super.dispose();
@@ -58,6 +59,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _firstName.text = me.firstName;
         _lastName.text = me.lastName;
         _email.text = me.email;
+        _phone.text = me.phoneNumber ?? '';
         _cityId = me.cityId;
         _error = null;
       });
@@ -77,6 +79,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         lastName: _lastName.text.trim(),
         email: _email.text.trim(),
         cityId: _cityId!,
+        phoneNumber: _phone.text.trim(),
       ),
       success: 'Podaci su sačuvani.',
     );
@@ -175,6 +178,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     validator: (v) => (v == null || !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim()))
                         ? 'Unesite ispravnu e-mail adresu.'
                         : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _phone,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(labelText: 'Telefon (nije obavezno)', border: OutlineInputBorder()),
+                    validator: (v) => (v == null || v.trim().isEmpty || RegExp(r'^\+?[0-9 /-]{6,20}$').hasMatch(v.trim()))
+                        ? null
+                        : 'Unesite ispravan broj telefona.',
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int>(

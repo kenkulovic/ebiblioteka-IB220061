@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../app_state.dart';
 import '../ui/api_image.dart';
+import '../ui/dialogs.dart';
 import '../ui/remote_picker.dart';
 
 /// Dodavanje (bookId == null) i izmjena knjige, zajedno s naslovnicom.
@@ -152,7 +153,7 @@ class _BookFormDialogState extends State<BookFormDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(widget.bookId == null ? 'Nova knjiga' : 'Izmjena knjige'),
+      title: DialogTitle(widget.bookId == null ? 'Nova knjiga' : 'Izmjena knjige'),
       content: SizedBox(width: 640, child: _loading ? const SizedBox(height: 160, child: Center(child: CircularProgressIndicator())) : _form()),
       actions: [
         TextButton(onPressed: _saving ? null : () => Navigator.pop(context, false), child: const Text('Otkaži')),

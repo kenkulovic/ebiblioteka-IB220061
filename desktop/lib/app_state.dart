@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ebiblioteka_api/ebiblioteka_api.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -5,7 +7,7 @@ import 'package:material_ui/material_ui.dart';
 class AppState extends ChangeNotifier {
   AppState(this.api) {
     // Ako server odbije token (istekao), korisnik se vraca na prijavu.
-    api.client.onUnauthorized = logout;
+    api.client.onUnauthorized = _clearSession;
   }
 
   final LibraryApi api;
@@ -24,7 +26,15 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Odjava: server poništava token, a lokalno se briše sesija.
   void logout() {
+    if (api.client.token != null) {
+      unawaited(api.logout());
+    }
+    _clearSession();
+  }
+
+  void _clearSession() {
     api.client.token = null;
     if (user != null) {
       user = null;

@@ -189,6 +189,7 @@ class Member {
         firstName = json['firstName'] as String,
         lastName = json['lastName'] as String,
         email = json['email'] as String,
+        phoneNumber = json['phoneNumber'] as String?,
         membershipNumber = json['membershipNumber'] as String,
         cityId = json['cityId'] as int,
         cityName = json['cityName'] as String,
@@ -205,6 +206,7 @@ class Member {
   final String firstName;
   final String lastName;
   final String email;
+  final String? phoneNumber;
   final String membershipNumber;
   final int cityId;
   final String cityName;

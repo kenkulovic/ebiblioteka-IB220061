@@ -1,6 +1,7 @@
 using eBiblioteka.Api.Constants;
 using eBiblioteka.Api.Dtos;
 using eBiblioteka.Api.Exceptions;
+using eBiblioteka.Api.Helpers;
 using eBiblioteka.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -43,6 +44,7 @@ public class NewsController : ControllerBase
             throw new BadRequestException("Slika vijesti je obavezna.");
         }
 
+        EnsureImageContentType(form.Image);
         await using var stream = form.Image.OpenReadStream();
         var created = await _service.CreateAsync(form.Title, form.Text, stream, form.Image.Length);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
@@ -57,6 +59,7 @@ public class NewsController : ControllerBase
             return Ok(await _service.UpdateAsync(id, form.Title, form.Text, null, 0));
         }
 
+        EnsureImageContentType(form.Image);
         await using var stream = form.Image.OpenReadStream();
         return Ok(await _service.UpdateAsync(id, form.Title, form.Text, stream, form.Image.Length));
     }
@@ -67,5 +70,13 @@ public class NewsController : ControllerBase
     {
         await _service.DeleteAsync(id);
         return NoContent();
+    }
+
+    private static void EnsureImageContentType(IFormFile image)
+    {
+        if (!ImageFormat.IsAllowedContentType(image.ContentType))
+        {
+            throw new BadRequestException("Dozvoljeni formati slike su PNG i JPEG.");
+        }
     }
 }

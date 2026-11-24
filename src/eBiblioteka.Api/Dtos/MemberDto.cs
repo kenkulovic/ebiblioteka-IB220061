@@ -7,6 +7,7 @@ public class MemberDto
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+    public string? PhoneNumber { get; set; }
     public string MembershipNumber { get; set; } = string.Empty;
     public int CityId { get; set; }
     public string CityName { get; set; } = string.Empty;

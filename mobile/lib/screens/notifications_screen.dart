@@ -62,7 +62,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(n.title),
+        title: DialogTitle(n.title),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(n.text),
           const SizedBox(height: 12),

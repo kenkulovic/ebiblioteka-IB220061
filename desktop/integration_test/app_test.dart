@@ -264,7 +264,7 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Blokiraj'));
     await settle(tester);
 
-    // Razlog je obavezan: dugme je onemogućeno dok nema 5 znakova.
+    // Razlog je obavezan: dugme je onemogućeno dok nema 10 znakova.
     final confirmButton = find.widgetWithText(FilledButton, 'Blokiraj');
     expect(tester.widget<FilledButton>(confirmButton).onPressed, isNull);
     await tester.enterText(find.byType(TextField).last, 'Probno blokiranje');

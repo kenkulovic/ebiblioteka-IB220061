@@ -1,4 +1,4 @@
-﻿using eBiblioteka.Api.Constants;
+using eBiblioteka.Api.Constants;
 using eBiblioteka.Api.Data.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -44,8 +44,16 @@ public static partial class DbSeeder
     int cityId,
     string role)
     {
-        if (await userManager.FindByNameAsync(userName) != null)
+        var existing = await userManager.FindByNameAsync(userName);
+        if (existing != null)
         {
+            // Baza kreirana prije dodavanja telefona: dopuni broj da demo podaci budu potpuni.
+            if (existing.PhoneNumber == null)
+            {
+                existing.PhoneNumber = PhoneFor(membershipNumber);
+                await userManager.UpdateAsync(existing);
+            }
+
             return;
         }
 
@@ -54,6 +62,7 @@ public static partial class DbSeeder
             UserName = userName,
             Email = $"{userName}@ebiblioteka.local",
             EmailConfirmed = true,
+            PhoneNumber = PhoneFor(membershipNumber),
             FirstName = firstName,
             LastName = lastName,
             MembershipNumber = membershipNumber,
@@ -70,6 +79,13 @@ public static partial class DbSeeder
 
         await userManager.AddToRoleAsync(user, role);
     }
+    // Stalan (ponovljiv) izmišljen broj telefona izveden iz broja članske karte.
+    private static string PhoneFor(string membershipNumber)
+    {
+        var digits = new string(membershipNumber.Where(char.IsDigit).ToArray());
+        return "+38761" + digits.PadLeft(6, '0');
+    }
+
     private static async Task SeedRolesAsync(IServiceProvider services)
     {
         var roleManager = services.GetRequiredService<RoleManager<IdentityRole<int>>>();

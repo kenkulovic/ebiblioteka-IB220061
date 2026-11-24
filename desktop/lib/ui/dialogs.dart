@@ -37,7 +37,7 @@ Future<bool> confirm(
   final result = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
-      title: Text(title),
+      title: DialogTitle(title),
       content: Text(message),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Otkaži')),
@@ -104,7 +104,7 @@ class _ReasonDialogState extends State<_ReasonDialog> {
     final valid = _length >= widget.minLength;
 
     return AlertDialog(
-      title: Text(widget.title),
+      title: DialogTitle(widget.title),
       content: SizedBox(
         width: 460,
         child: Column(
@@ -135,6 +135,28 @@ class _ReasonDialogState extends State<_ReasonDialog> {
         FilledButton(
           onPressed: valid ? () => Navigator.pop(context, _controller.text.trim()) : null,
           child: Text(widget.confirmText),
+        ),
+      ],
+    );
+  }
+}
+
+/// Naslov dijaloga s dugmetom "X" za zatvaranje (zatvara dijalog bez promjene).
+class DialogTitle extends StatelessWidget {
+  const DialogTitle(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: Text(text)),
+        IconButton(
+          key: const ValueKey('dialog-close'),
+          tooltip: 'Zatvori',
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.maybePop(context),
         ),
       ],
     );

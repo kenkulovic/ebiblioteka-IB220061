@@ -1,4 +1,4 @@
-﻿using eBiblioteka.Api.Data.Entities;
+using eBiblioteka.Api.Data.Entities;
 using eBiblioteka.Api.Data.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -28,6 +28,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
     public DbSet<News> News => Set<News>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<BookSimilarity> BookSimilarities => Set<BookSimilarity>();
+    public DbSet<RevokedToken> RevokedTokens => Set<RevokedToken>();
 
     // SQL Server ne pamti vremensku zonu, pa se svaki datum pri čitanju označava kao UTC.
     // Tako se u JSON-u šalje s oznakom "Z" i klijenti ga ispravno pretvaraju u lokalno vrijeme.
@@ -114,6 +115,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
         b.Entity<ReservationStatusHistory>(e =>
         {
             e.Property(x => x.Reason).HasMaxLength(500);
+        });
+
+        b.Entity<RevokedToken>(e =>
+        {
+            e.Property(x => x.Jti).IsRequired().HasMaxLength(64);
+            e.HasIndex(x => x.Jti).IsUnique();
+            e.HasIndex(x => x.ExpiresAt);
         });
 
         // Najviše jedna aktivna posudba po članu i knjizi.

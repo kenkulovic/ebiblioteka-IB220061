@@ -9,6 +9,9 @@ public class Loan
     public DateTime DueDate { get; set; }
     public DateTime? ReturnDate { get; set; }
     public int ExtensionCount { get; set; }
+
+    // Kad je poslan podsjetnik da rok povrata ističe sutra (null = nije poslan).
+    public DateTime? ReminderSentAt { get; set; }
     public LoanStatus Status { get; set; } = LoanStatus.Active;
 
     public int UserId { get; set; }
