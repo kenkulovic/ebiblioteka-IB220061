@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Izlaz skripte za predaju (release ZIP); .env-tajne.zip se commit-uje, .env nikad
+release/

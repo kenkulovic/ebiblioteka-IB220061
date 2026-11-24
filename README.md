@@ -142,6 +142,24 @@ mogao isprobati bez pravih ključeva; pravi PayPal se koristi samo uz ključeve 
   koje radi sistem bilježe se kao "Sistem"). Rok preuzimanja (3 dana) provjerava pozadinski posao.
 - **Preporuke**: item-based collaborative filtering, objašnjivo; vidi `recommender-dokumentacija.md`.
 
+## Predaja (GitHub Release)
+
+Izdanje za predaju (APK i Windows Release folder u jednom ZIP-u, te `.env-tajne.zip` umjesto `.env`) pravi jedna skripta:
+
+```powershell
+powershell -File scripts\make-release.ps1 -SecretsPassword "<lozinka>"
+```
+
+Rezultat je `release\eBiblioteka-IB220061-v1.0.0.zip` (ide kao dodatak GitHub Release-a) i `.env-tajne.zip` u korijenu
+repozitorija (zaštićen lozinkom, AES-256; lozinka se navodi u opisu predaje, nikad u repozitoriju).
+Ako se u `.env` upišu pravi PayPal ključevi, skriptu treba ponovo pokrenuti da arhiva sadrži ažurirane postavke.
+
+Release se objavljuje kao neizmjenjiv (*immutable*) na GitHub-u, s oznakom (tagom) koja se navodi u predaji, npr. `v1.0.0`.
+
+APK je potpisan razvojnim ključem (dovoljno za instalaciju na emulator i uređaj za testiranje).
+Aplikacije imaju adresu API-ja upisanu pri izgradnji: Windows `http://localhost:5028`, Android `http://10.0.2.2:5028`
+(emulator); za drugu adresu skripta prima parametre `-WindowsApiUrl` i `-AndroidApiUrl`.
+
 ## Napomene
 
 - Mobilna aplikacija dozvoljava nešifrovan HTTP saobraćaj jer API u razvoju radi na `http` adresi u lokalnoj mreži.
