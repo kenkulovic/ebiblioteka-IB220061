@@ -20,11 +20,23 @@ public class ReportService : IReportService
         _db = db;
     }
 
-    public async Task<LoanReportDto> GetLoanReportAsync(ReportQueryDto query)
+    public async Task<LoanReportDto> GetLoanReportAsync(LoanReportQueryDto query)
     {
         var (from, to, fromUtc, toUtc) = NormalizePeriod(query);
 
         var loans = _db.Loans.AsNoTracking().Where(l => l.LoanDate >= fromUtc && l.LoanDate < toUtc);
+
+        string? categoryName = null;
+        if (query.CategoryId.HasValue)
+        {
+            var categoryId = query.CategoryId.Value;
+            categoryName = await _db.Categories.AsNoTracking()
+                .Where(c => c.Id == categoryId)
+                .Select(c => c.Name)
+                .FirstOrDefaultAsync()
+                ?? throw new BadRequestException("Odabrana kategorija ne postoji.");
+            loans = loans.Where(l => l.Book.CategoryId == categoryId);
+        }
         var today = DateTime.UtcNow.Date;
 
         var total = await loans.CountAsync();
@@ -36,12 +48,22 @@ public class ReportService : IReportService
             .AverageAsync(l => (double?)EF.Functions.DateDiffDay(l.LoanDate, l.ReturnDate!.Value));
 
         var topBooks = await loans
-            .GroupBy(l => l.Book.Title)
-            .Select(g => new CountItemDto { Name = g.Key, Count = g.Count() })
+            .GroupBy(l => new { l.BookId, l.Book.Title })
+            .Select(g => new TopBookDto
+            {
+                Name = g.Key.Title,
+                Count = g.Count(),
+                AverageRating = _db.Reviews.Where(r => r.BookId == g.Key.BookId).Average(r => (double?)r.Rating)
+            })
             .OrderByDescending(x => x.Count)
             .ThenBy(x => x.Name)
-            .Take(5)
+            .Take(10)
             .ToListAsync();
+
+        foreach (var book in topBooks.Where(b => b.AverageRating.HasValue))
+        {
+            book.AverageRating = Math.Round(book.AverageRating!.Value, 2);
+        }
 
         var byCategory = await loans
             .GroupBy(l => l.Book.Category.Name)
@@ -67,6 +89,7 @@ public class ReportService : IReportService
 
         return new LoanReportDto
         {
+            CategoryName = categoryName,
             From = from,
             To = to,
             TotalLoans = total,
@@ -81,13 +104,36 @@ public class ReportService : IReportService
         };
     }
 
-    public async Task<FineReportDto> GetFineReportAsync(ReportQueryDto query)
+    public async Task<FineReportDto> GetFineReportAsync(FineReportQueryDto query)
     {
         var (from, to, fromUtc, toUtc) = NormalizePeriod(query);
 
         var fines = _db.Fines.AsNoTracking().Where(f => f.CreatedAt >= fromUtc && f.CreatedAt < toUtc);
         var payments = _db.Payments.AsNoTracking()
             .Where(p => p.Fine.CreatedAt >= fromUtc && p.Fine.CreatedAt < toUtc);
+
+        if (query.Status.HasValue)
+        {
+            var status = query.Status.Value;
+            fines = fines.Where(f => f.Status == status);
+            payments = payments.Where(p => p.Fine.Status == status);
+        }
+
+        var averageDaysLate = await fines.AverageAsync(f => (double?)f.DaysLate);
+
+        var members = await fines
+            .GroupBy(f => new { f.UserId, f.User.FirstName, f.User.LastName })
+            .Select(g => new FineMemberDto
+            {
+                Member = g.Key.FirstName + " " + g.Key.LastName,
+                Count = g.Count(),
+                TotalKm = g.Sum(f => f.Amount),
+                UnpaidKm = g.Where(f => f.Status == FineStatus.Unpaid).Sum(f => f.Amount)
+            })
+            .OrderByDescending(m => m.TotalKm)
+            .ThenBy(m => m.Member)
+            .Take(MaxItems)
+            .ToListAsync();
 
         var byStatus = await fines
             .GroupBy(f => f.Status)
@@ -130,6 +176,9 @@ public class ReportService : IReportService
 
         return new FineReportDto
         {
+            StatusFilter = query.Status,
+            AverageDaysLate = averageDaysLate.HasValue ? Math.Round(averageDaysLate.Value, 1) : null,
+            Members = members,
             From = from,
             To = to,
             TotalFines = byStatus.Sum(r => r.Count),
@@ -146,13 +195,13 @@ public class ReportService : IReportService
         };
     }
 
-    public async Task<byte[]> GetLoanReportPdfAsync(ReportQueryDto query, int adminId)
+    public async Task<byte[]> GetLoanReportPdfAsync(LoanReportQueryDto query, int adminId)
     {
         var report = await GetLoanReportAsync(query);
         return ReportPdfGenerator.Loans(report, await GetAdminNameAsync(adminId));
     }
 
-    public async Task<byte[]> GetFineReportPdfAsync(ReportQueryDto query, int adminId)
+    public async Task<byte[]> GetFineReportPdfAsync(FineReportQueryDto query, int adminId)
     {
         var report = await GetFineReportAsync(query);
         return ReportPdfGenerator.Fines(report, await GetAdminNameAsync(adminId));

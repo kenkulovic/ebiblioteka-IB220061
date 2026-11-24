@@ -29,7 +29,8 @@ public static class ReportPdfGenerator
     public static byte[] Loans(LoanReportDto report, string generatedBy) =>
         Document.Create(document => document.Page(page =>
         {
-            Configure(page, "Izvještaj o posudbama", report.From, report.To, generatedBy);
+            Configure(page, "Izvještaj o posudbama", report.From, report.To, generatedBy,
+                report.CategoryName == null ? null : $"Kategorija: {report.CategoryName}");
 
             page.Content().Column(column =>
             {
@@ -46,8 +47,8 @@ public static class ReportPdfGenerator
                             .Replace('.', ',') ?? "—")
                 }));
 
-                column.Item().Text("Najposuđivanije knjige").Bold().FontSize(11);
-                column.Item().Element(c => CountTable(c, "Knjiga", report.TopBooks));
+                column.Item().Text("10 najposuđivanijih knjiga").Bold().FontSize(11);
+                column.Item().Element(c => TopBooksTable(c, report.TopBooks));
 
                 column.Item().Text("Posudbe po kategorijama").Bold().FontSize(11);
                 column.Item().Element(c => CountTable(c, "Kategorija", report.ByCategory));
@@ -107,7 +108,8 @@ public static class ReportPdfGenerator
     public static byte[] Fines(FineReportDto report, string generatedBy) =>
         Document.Create(document => document.Page(page =>
         {
-            Configure(page, "Izvještaj o zakasninama i uplatama", report.From, report.To, generatedBy);
+            Configure(page, "Izvještaj o zakasninama i uplatama", report.From, report.To, generatedBy,
+                report.StatusFilter == null ? null : $"Status: {StatusName(report.StatusFilter.Value)}");
 
             page.Content().Column(column =>
             {
@@ -121,8 +123,13 @@ public static class ReportPdfGenerator
                     ("Stornirane", $"{report.Cancelled.Count}  ({Money(report.Cancelled.AmountKm)})"),
                     ("Naplaćeno putem PayPal-a", Money(report.PaidPayPalKm)),
                     ("Naplaćeno na šalteru", Money(report.PaidCounterKm)),
-                    ("Vraćene uplate", $"{report.RefundedCount}  ({Decimal(report.RefundedEur)} EUR)")
+                    ("Vraćene uplate", $"{report.RefundedCount}  ({Decimal(report.RefundedEur)} EUR)"),
+                    ("Prosječno kašnjenje, dana",
+                        report.AverageDaysLate.HasValue ? Decimal((decimal)report.AverageDaysLate.Value, 1) : "—")
                 }));
+
+                column.Item().Text("Članovi sa zakasninama").Bold().FontSize(11);
+                column.Item().Element(c => MembersTable(c, report.Members));
 
                 column.Item().Text("Pregled zakasnina").Bold().FontSize(11);
                 column.Item().Table(table =>
@@ -164,7 +171,8 @@ public static class ReportPdfGenerator
             });
         })).GeneratePdf();
 
-    private static void Configure(PageDescriptor page, string title, DateOnly from, DateOnly to, string generatedBy)
+    private static void Configure(
+        PageDescriptor page, string title, DateOnly from, DateOnly to, string generatedBy, string? filter = null)
     {
         page.Size(PageSizes.A4);
         page.Margin(30);
@@ -176,6 +184,11 @@ public static class ReportPdfGenerator
             column.Item().Text(title).Bold().FontSize(13);
             column.Item().Text($"Period: {from:dd.MM.yyyy} – {to:dd.MM.yyyy}")
                 .FontColor(Colors.Grey.Darken2);
+            if (filter != null)
+            {
+                column.Item().Text(filter).FontColor(Colors.Grey.Darken2);
+            }
+
             column.Item().PaddingTop(4).LineHorizontal(1).LineColor(Accent);
         });
 
@@ -238,6 +251,72 @@ public static class ReportPdfGenerator
             }
         });
 
+    private static void TopBooksTable(IContainer container, List<TopBookDto> rows) =>
+        container.Table(table =>
+        {
+            table.ColumnsDefinition(c =>
+            {
+                c.RelativeColumn(5);
+                c.ConstantColumn(60);
+                c.ConstantColumn(90);
+            });
+
+            table.Header(h =>
+            {
+                h.Cell().Element(HeaderCell).Text("Knjiga");
+                h.Cell().Element(HeaderCell).Text("Posudbi");
+                h.Cell().Element(HeaderCell).Text("Prosj. ocjena");
+            });
+
+            if (rows.Count == 0)
+            {
+                table.Cell().ColumnSpan(3).Element(BodyCell).Text("Nema podataka za odabrani period.");
+                return;
+            }
+
+            foreach (var row in rows)
+            {
+                table.Cell().Element(BodyCell).Text(row.Name);
+                table.Cell().Element(BodyCell).Text(row.Count.ToString());
+                table.Cell().Element(BodyCell).Text(
+                    row.AverageRating.HasValue ? Decimal((decimal)row.AverageRating.Value, 1) : "—");
+            }
+        });
+
+    private static void MembersTable(IContainer container, List<FineMemberDto> rows) =>
+        container.Table(table =>
+        {
+            table.ColumnsDefinition(c =>
+            {
+                c.RelativeColumn(4);
+                c.ConstantColumn(60);
+                c.ConstantColumn(80);
+                c.ConstantColumn(80);
+            });
+
+            table.Header(h =>
+            {
+                foreach (var title in new[] { "Član", "Zakasnina", "Ukupno", "Neplaćeno" })
+                {
+                    h.Cell().Element(HeaderCell).Text(title);
+                }
+            });
+
+            if (rows.Count == 0)
+            {
+                table.Cell().ColumnSpan(4).Element(BodyCell).Text("Nema zakasnina za odabrani period.");
+                return;
+            }
+
+            foreach (var row in rows)
+            {
+                table.Cell().Element(BodyCell).Text(row.Member);
+                table.Cell().Element(BodyCell).Text(row.Count.ToString());
+                table.Cell().Element(BodyCell).Text(Money(row.TotalKm));
+                table.Cell().Element(BodyCell).Text(Money(row.UnpaidKm));
+            }
+        });
+
     private static IContainer HeaderCell(IContainer container) =>
         container.Background(Accent).Padding(4).DefaultTextStyle(x => x.FontColor(Colors.White).Bold());
 
@@ -247,8 +326,16 @@ public static class ReportPdfGenerator
     private static string Date(DateTime value) => value.ToString("dd.MM.yyyy");
 
     // Decimalni zarez, bez obzira na jezik servera.
-    private static string Decimal(decimal value) =>
-        value.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture).Replace('.', ',');
+    private static string Decimal(decimal value, int places = 2) =>
+        value.ToString("F" + places, System.Globalization.CultureInfo.InvariantCulture).Replace('.', ',');
+
+    private static string StatusName(FineStatus status) => status switch
+    {
+        FineStatus.Unpaid => "Neplaćene",
+        FineStatus.Paid => "Plaćene",
+        FineStatus.Cancelled => "Stornirane",
+        _ => status.ToString()
+    };
 
     private static string Money(decimal value) => $"{Decimal(value)} KM";
 

@@ -19,6 +19,9 @@ class ReportsScreen extends StatefulWidget {
 
 class _ReportsScreenState extends State<ReportsScreen> {
   late DateTimeRange _range;
+  int? _categoryId;
+  String? _status;
+  List<Lookup> _categories = [];
 
   LoanReport? _loans;
   FineReport? _fines;
@@ -32,7 +35,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
     super.initState();
     final today = DateTime.now();
     _range = DateTimeRange(start: today.subtract(const Duration(days: 29)), end: today);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCategories();
+      _load();
+    });
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final page = await _api.lookups('categories', pageSize: 100);
+      if (mounted) setState(() => _categories = page.items);
+    } on ApiException {
+      // Bez liste kategorija izvještaj i dalje radi za sve kategorije.
+    }
   }
 
   Future<void> _pickRange() async {
@@ -57,8 +72,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
     });
 
     try {
-      final loans = await _api.loanReport(_range.start, _range.end);
-      final fines = await _api.fineReport(_range.start, _range.end);
+      final loans = await _api.loanReport(_range.start, _range.end, categoryId: _categoryId);
+      final fines = await _api.fineReport(_range.start, _range.end, status: _status);
       if (mounted) {
         setState(() {
           _loans = loans;
@@ -105,6 +120,44 @@ class _ReportsScreenState extends State<ReportsScreen> {
             label: Text('${formatDate(_range.start)} – ${formatDate(_range.end)}'),
           ),
           const SizedBox(width: 12),
+          SizedBox(
+            width: 210,
+            child: DropdownButtonFormField<int?>(
+              key: const ValueKey('report-category'),
+              initialValue: _categoryId,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Kategorija', border: OutlineInputBorder(), isDense: true),
+              items: [
+                const DropdownMenuItem<int?>(value: null, child: Text('Sve kategorije')),
+                for (final c in _categories) DropdownMenuItem<int?>(value: c.id, child: Text(c.name)),
+              ],
+              onChanged: (v) {
+                setState(() => _categoryId = v);
+                _load();
+              },
+            ),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 190,
+            child: DropdownButtonFormField<String?>(
+              key: const ValueKey('report-status'),
+              initialValue: _status,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Status zakasnina', border: OutlineInputBorder(), isDense: true),
+              items: const [
+                DropdownMenuItem<String?>(value: null, child: Text('Svi statusi')),
+                DropdownMenuItem<String?>(value: 'Unpaid', child: Text('Neplaćene')),
+                DropdownMenuItem<String?>(value: 'Paid', child: Text('Plaćene')),
+                DropdownMenuItem<String?>(value: 'Cancelled', child: Text('Stornirane')),
+              ],
+              onChanged: (v) {
+                setState(() => _status = v);
+                _load();
+              },
+            ),
+          ),
+          const SizedBox(width: 12),
           FilledButton.tonal(onPressed: _loading ? null : _load, child: const Text('Osvježi')),
           if (_loading) const Padding(padding: EdgeInsets.only(left: 16), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
         ]),
@@ -127,11 +180,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
               extra: [
                 if (_loans!.topBooks.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  Text('Najposuđivanije knjige', style: Theme.of(context).textTheme.labelLarge),
-                  for (final b in _loans!.topBooks) Text('${b.name}: ${b.count}'),
+                  Text('10 najposuđivanijih knjiga (posudbi, prosječna ocjena)',
+                      style: Theme.of(context).textTheme.labelLarge),
+                  for (final b in _loans!.topBooks)
+                    Text('${b.name}: ${b.count}, ${b.averageRating?.toStringAsFixed(1).replaceAll('.', ',') ?? '—'}'),
+                ],
+                if (_loans!.byCategory.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text('Posudbe po kategorijama', style: Theme.of(context).textTheme.labelLarge),
+                  for (final c in _loans!.byCategory) Text('${c.name}: ${c.count}'),
                 ],
               ],
-              onPdf: () => _export('izvjestaj-posudbe', () => _api.loanReportPdf(_range.start, _range.end)),
+              onPdf: () => _export(
+                  'izvjestaj-posudbe', () => _api.loanReportPdf(_range.start, _range.end, categoryId: _categoryId)),
             ),
             _ReportCard(
               title: 'Izvještaj o zakasninama i uplatama',
@@ -143,8 +204,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ('Naplaćeno putem PayPal-a', formatKm(_fines!.paidPayPalKm)),
                 ('Naplaćeno na šalteru', formatKm(_fines!.paidCounterKm)),
                 ('Vraćene uplate', '${_fines!.refundedCount} (${formatEur(_fines!.refundedEur)})'),
+                (
+                  'Prosječno kašnjenje (dana)',
+                  _fines!.averageDaysLate?.toStringAsFixed(1).replaceAll('.', ',') ?? '—'
+                ),
               ],
-              onPdf: () => _export('izvjestaj-zakasnine', () => _api.fineReportPdf(_range.start, _range.end)),
+              extra: [
+                if (_fines!.members.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text('Članovi sa zakasninama (broj, ukupno, neplaćeno)',
+                      style: Theme.of(context).textTheme.labelLarge),
+                  for (final m in _fines!.members.take(10))
+                    Text('${m.member}: ${m.count}, ${formatKm(m.totalKm)}, ${formatKm(m.unpaidKm)}'),
+                  if (_fines!.members.length > 10)
+                    Text('... i još ${_fines!.members.length - 10} (kompletna lista je u PDF-u)'),
+                ],
+              ],
+              onPdf: () =>
+                  _export('izvjestaj-zakasnine', () => _api.fineReportPdf(_range.start, _range.end, status: _status)),
             ),
           ]),
       ]),

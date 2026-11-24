@@ -93,9 +93,26 @@ void main() {
     final fines = await admin.fineReport(from, to);
     expect(fines.totalFines, greaterThan(0));
 
+    // Izvještaj o posudbama: najviše 10 knjiga, s prosječnom ocjenom; filter po kategoriji.
+    expect(loans.topBooks.length, lessThanOrEqualTo(10));
+    expect(loans.topBooks.any((b) => b.averageRating != null), isTrue);
+    final categories = await admin.lookups('categories', pageSize: 100);
+    final byCategory = await admin.loanReport(from, to, categoryId: categories.items.first.id);
+    expect(byCategory.categoryName, categories.items.first.name);
+    expect(byCategory.totalLoans, lessThanOrEqualTo(loans.totalLoans));
+
+    // Izvještaj o zakasninama: lista članova, prosječno kašnjenje i filter po statusu.
+    expect(fines.members, isNotEmpty);
+    expect(fines.averageDaysLate, isNotNull);
+    final unpaid = await admin.fineReport(from, to, status: 'Unpaid');
+    expect(unpaid.paid.count, 0);
+    expect(unpaid.totalFines, fines.unpaid.count);
+
     final pdf = await admin.loanReportPdf(from, to);
     expect(String.fromCharCodes(pdf.take(5)), '%PDF-');
     expect((await admin.fineReportPdf(from, to)).length, greaterThan(1000));
+    expect((await admin.loanReportPdf(from, to, categoryId: categories.items.first.id)).length, greaterThan(1000));
+    expect((await admin.fineReportPdf(from, to, status: 'Paid')).length, greaterThan(1000));
   });
 
   test('greske servera stizu kao ApiException s porukom', () async {

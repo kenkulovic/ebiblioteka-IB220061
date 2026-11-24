@@ -4,8 +4,8 @@ namespace eBiblioteka.Api.Services;
 
 public interface IReportService
 {
-    Task<LoanReportDto> GetLoanReportAsync(ReportQueryDto query);
-    Task<FineReportDto> GetFineReportAsync(ReportQueryDto query);
-    Task<byte[]> GetLoanReportPdfAsync(ReportQueryDto query, int adminId);
-    Task<byte[]> GetFineReportPdfAsync(ReportQueryDto query, int adminId);
+    Task<LoanReportDto> GetLoanReportAsync(LoanReportQueryDto query);
+    Task<FineReportDto> GetFineReportAsync(FineReportQueryDto query);
+    Task<byte[]> GetLoanReportPdfAsync(LoanReportQueryDto query, int adminId);
+    Task<byte[]> GetFineReportPdfAsync(FineReportQueryDto query, int adminId);
 }

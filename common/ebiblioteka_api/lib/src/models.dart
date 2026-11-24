@@ -513,22 +513,48 @@ class CountItem {
   final int count;
 }
 
+class TopBook {
+  TopBook.fromJson(Map<String, dynamic> json)
+      : name = json['name'] as String,
+        count = json['count'] as int,
+        averageRating = _doubleOrNull(json['averageRating']);
+
+  final String name;
+  final int count;
+  final double? averageRating;
+}
+
+class FineMember {
+  FineMember.fromJson(Map<String, dynamic> json)
+      : member = json['member'] as String,
+        count = json['count'] as int,
+        totalKm = _double(json['totalKm']),
+        unpaidKm = _double(json['unpaidKm']);
+
+  final String member;
+  final int count;
+  final double totalKm;
+  final double unpaidKm;
+}
+
 class LoanReport {
   LoanReport.fromJson(Map<String, dynamic> json)
-      : totalLoans = json['totalLoans'] as int,
+      : categoryName = json['categoryName'] as String?,
+        totalLoans = json['totalLoans'] as int,
         returned = json['returned'] as int,
         active = json['active'] as int,
         overdueNow = json['overdueNow'] as int,
         averageLoanDays = _doubleOrNull(json['averageLoanDays']),
-        topBooks = _list(json['topBooks'], CountItem.fromJson),
+        topBooks = _list(json['topBooks'], TopBook.fromJson),
         byCategory = _list(json['byCategory'], CountItem.fromJson);
 
+  final String? categoryName;
   final int totalLoans;
   final int returned;
   final int active;
   final int overdueNow;
   final double? averageLoanDays;
-  final List<CountItem> topBooks;
+  final List<TopBook> topBooks;
   final List<CountItem> byCategory;
 }
 
@@ -543,7 +569,9 @@ class FineStatusTotal {
 
 class FineReport {
   FineReport.fromJson(Map<String, dynamic> json)
-      : totalFines = json['totalFines'] as int,
+      : averageDaysLate = _doubleOrNull(json['averageDaysLate']),
+        members = _list(json['members'], FineMember.fromJson),
+        totalFines = json['totalFines'] as int,
         totalAmountKm = _double(json['totalAmountKm']),
         unpaid = FineStatusTotal.fromJson(json['unpaid'] as Map<String, dynamic>),
         paid = FineStatusTotal.fromJson(json['paid'] as Map<String, dynamic>),
@@ -553,6 +581,8 @@ class FineReport {
         refundedCount = json['refundedCount'] as int,
         refundedEur = _double(json['refundedEur']);
 
+  final double? averageDaysLate;
+  final List<FineMember> members;
   final int totalFines;
   final double totalAmountKm;
   final FineStatusTotal unpaid;

@@ -372,20 +372,25 @@ class LibraryApi {
 
   // ----------------------------------------------------------------- Izvjestaji
 
-  Map<String, dynamic> _period(DateTime from, DateTime to) => {'from': _isoDate(from), 'to': _isoDate(to)};
+  Map<String, dynamic> _period(DateTime from, DateTime to, [Map<String, dynamic> extra = const {}]) =>
+      {'from': _isoDate(from), 'to': _isoDate(to), ...extra};
 
   String _isoDate(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  Future<LoanReport> loanReport(DateTime from, DateTime to) async =>
-      LoanReport.fromJson(await client.get('/api/reports/loans', query: _period(from, to)) as Map<String, dynamic>);
+  /// [categoryId] je neobavezan: izvještaj samo za jednu kategoriju.
+  Future<LoanReport> loanReport(DateTime from, DateTime to, {int? categoryId}) async => LoanReport.fromJson(
+      await client.get('/api/reports/loans', query: _period(from, to, {'categoryId': categoryId}))
+          as Map<String, dynamic>);
 
-  Future<FineReport> fineReport(DateTime from, DateTime to) async =>
-      FineReport.fromJson(await client.get('/api/reports/fines', query: _period(from, to)) as Map<String, dynamic>);
+  /// [status] je neobavezan: "Unpaid", "Paid" ili "Cancelled".
+  Future<FineReport> fineReport(DateTime from, DateTime to, {String? status}) async => FineReport.fromJson(
+      await client.get('/api/reports/fines', query: _period(from, to, {'status': status}))
+          as Map<String, dynamic>);
 
-  Future<Uint8List> loanReportPdf(DateTime from, DateTime to) =>
-      client.getBytes('/api/reports/loans/pdf', query: _period(from, to));
+  Future<Uint8List> loanReportPdf(DateTime from, DateTime to, {int? categoryId}) =>
+      client.getBytes('/api/reports/loans/pdf', query: _period(from, to, {'categoryId': categoryId}));
 
-  Future<Uint8List> fineReportPdf(DateTime from, DateTime to) =>
-      client.getBytes('/api/reports/fines/pdf', query: _period(from, to));
+  Future<Uint8List> fineReportPdf(DateTime from, DateTime to, {String? status}) =>
+      client.getBytes('/api/reports/fines/pdf', query: _period(from, to, {'status': status}));
 }
