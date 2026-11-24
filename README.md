@@ -159,17 +159,19 @@ mogao isprobati bez pravih ključeva; pravi PayPal se koristi samo uz ključeve 
 
 ## Predaja (GitHub Release)
 
-Izdanje za predaju (APK i Windows Release folder u jednom ZIP-u, te `.env-tajne.zip` umjesto `.env`) pravi jedna skripta:
+Build za pregled pravi jedna skripta (radi `flutter clean`, zatim `flutter build apk --release` i `flutter build windows --release`):
 
 ```powershell
 powershell -File scripts\make-release.ps1 -SecretsPassword "<lozinka>"
 ```
 
-Rezultat je `release\eBiblioteka-IB220061-v1.0.0.zip` (ide kao dodatak GitHub Release-a) i `.env-tajne.zip` u korijenu
-repozitorija (zaštićen lozinkom, AES-256; lozinka se navodi u opisu predaje, nikad u repozitoriju).
+Rezultat je `release\fit-build-<datum>.zip` sa strukturom `mobile\build\app\outputs\flutter-apk\app-release.apk` i
+`desktop\build\windows\x64\runner\Release\` (ide kao jedini dodatak GitHub Release-a, bez `.env` fajla) te
+`.env-tajne.zip` u korijenu repozitorija umjesto `.env` (AES-256; lozinka se navodi samo u predaji na DL sistemu).
 Ako se u `.env` upišu pravi PayPal ključevi, skriptu treba ponovo pokrenuti da arhiva sadrži ažurirane postavke.
 
-Release se objavljuje kao neizmjenjiv (*immutable*) na GitHub-u, s oznakom (tagom) koja se navodi u predaji, npr. `v1.0.0`.
+Release se prvo kreira kao draft, doda se ZIP, provjeri sadržaj, a tek onda objavi, uz uključenu opciju
+*Enable release immutability* u postavkama repozitorija. Oznaka je oblika `predaja-gggg-mm-dd`.
 
 APK je potpisan razvojnim ključem (dovoljno za instalaciju na emulator i uređaj za testiranje).
 Aplikacije imaju adresu API-ja upisanu pri izgradnji: Windows `http://localhost:5028`, Android `http://10.0.2.2:5028`
