@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../ui/api_image.dart';
 import '../ui/recommendation_tile.dart';
+import 'my_library_screen.dart';
 import 'recommendations_screen.dart';
 
 /// Početni ekran: vijesti biblioteke i preporuke knjiga s objašnjenjem.
@@ -17,6 +18,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   List<NewsItem>? _news;
+  List<Loan>? _loans;
   List<Recommendation>? _recommendations;
   String? _newsError;
   String? _recommendationsError;
@@ -30,7 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _load() async {
-    await Future.wait([_loadNews(), _loadRecommendations()]);
+    await Future.wait([_loadNews(), _loadLoans(), _loadRecommendations()]);
   }
 
   Future<void> _loadNews() async {
@@ -46,6 +48,18 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) setState(() => _newsError = e.message);
     }
   }
+
+  Future<void> _loadLoans() async {
+    try {
+      final page = await _api.myLoans(pageSize: 10, filter: 'Active');
+      if (mounted) setState(() => _loans = page.items);
+    } on ApiException {
+      // Sažetak posudbi je dodatak: bez njega početni ekran radi i dalje.
+    }
+  }
+
+  void _openLibrary(int tab) =>
+      Navigator.push(context, MaterialPageRoute<void>(builder: (_) => MyLibraryScreen(initialTab: tab)));
 
   Future<void> _loadRecommendations() async {
     try {
@@ -98,6 +112,8 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ListView(children: [
           _sectionTitle('Vijesti'),
           _newsSection(),
+          _sectionTitle('Moje posudbe'),
+          ..._loansSection(),
           _sectionTitle('Preporučeno za vas'),
           ..._recommendationSection(),
           const SizedBox(height: 16),
@@ -161,6 +177,36 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
     );
+  }
+
+  List<Widget> _loansSection() {
+    final scheme = Theme.of(context).colorScheme;
+    final loans = _loans;
+    if (loans == null) return const [SizedBox(height: 40)];
+
+    // Rok koji ističe u naredna 2 dana (ili je prošao) je istaknut.
+    final soon = DateTime.now().add(const Duration(days: 2));
+
+    return [
+      if (loans.isEmpty)
+        const Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('Trenutno nemate aktivnih posudbi.')),
+      for (final loan in loans)
+        ListTile(
+          dense: true,
+          leading: const Icon(Icons.menu_book),
+          title: Text(loan.bookTitle),
+          trailing: Text(
+            'Rok: ${formatDate(loan.dueDate)}',
+            style: loan.dueDate.isBefore(soon)
+                ? TextStyle(color: scheme.error, fontWeight: FontWeight.bold)
+                : null,
+          ),
+        ),
+      Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+        TextButton(onPressed: () => _openLibrary(0), child: const Text('Sve posudbe')),
+        TextButton(onPressed: () => _openLibrary(1), child: const Text('Rezervacije')),
+      ]),
+    ];
   }
 
   List<Widget> _recommendationSection() {

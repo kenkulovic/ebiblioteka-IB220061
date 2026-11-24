@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ebiblioteka_api/ebiblioteka_api.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -23,13 +25,24 @@ class AsyncList<T> extends StatefulWidget {
 }
 
 class AsyncListState<T> extends State<AsyncList<T>> {
+  /// Lista se sama osvježava, pa član vidi promjene koje bibliotekar napravi bez ručnog osvježavanja.
+  static const _autoRefresh = Duration(seconds: 20);
+
   List<T>? _items;
   String? _error;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     reload();
+    _timer = Timer.periodic(_autoRefresh, (_) => reload());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
   }
 
   Future<void> reload() async {

@@ -58,7 +58,13 @@ class _AuthorsScreenState extends State<AuthorsScreen> {
         DataCell(SizedBox(width: 320, child: Text(author.biography ?? '—', overflow: TextOverflow.ellipsis))),
         DataCell(Row(children: [
           IconButton(tooltip: 'Izmijeni', onPressed: () => _edit(author), icon: const Icon(Icons.edit)),
-          IconButton(tooltip: 'Obriši', onPressed: () => _delete(author), icon: const Icon(Icons.delete_outline)),
+          IconButton(
+            tooltip: author.bookCount > 0
+                ? 'Autor ima ${author.bookCount} knjiga i ne može se obrisati. Prvo uklonite ili izmijenite te knjige.'
+                : 'Obriši',
+            onPressed: author.bookCount > 0 ? null : () => _delete(author),
+            icon: const Icon(Icons.delete_outline),
+          ),
         ])),
       ]),
     );

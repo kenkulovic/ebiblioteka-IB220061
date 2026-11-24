@@ -10,12 +10,16 @@ import 'paypal_screen.dart';
 
 /// Moje knjige: posudbe (produženje, ocjenjivanje), rezervacije i zakasnine (plaćanje).
 class MyLibraryScreen extends StatelessWidget {
-  const MyLibraryScreen({super.key});
+  const MyLibraryScreen({super.key, this.initialTab = 0});
+
+  /// 0 = posudbe, 1 = rezervacije, 2 = zakasnine.
+  final int initialTab;
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 3,
+      initialIndex: initialTab,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Moje knjige'),
