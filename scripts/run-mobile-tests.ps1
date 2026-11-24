@@ -40,7 +40,7 @@ function Stop-Local {
 function Reset-DemoData {
     # Brise aktivnost i probne korisnike; pri sljedecem startu API ponovo ubacuje pocetne podatke.
     Invoke-Sql @"
-DELETE FROM BookSimilarities; DELETE FROM Payments; DELETE FROM Fines; DELETE FROM Reviews; DELETE FROM Loans;
+DELETE FROM RevokedTokens; DELETE FROM BookSimilarities; DELETE FROM Payments; DELETE FROM Fines; DELETE FROM Reviews; DELETE FROM Loans;
 DELETE FROM ReservationStatusHistory; DELETE FROM Reservations; DELETE FROM Notifications;
 DELETE FROM AspNetUserRoles WHERE UserId IN (SELECT Id FROM AspNetUsers WHERE UserName LIKE 'testni%');
 DELETE FROM AspNetUsers WHERE UserName LIKE 'testni%';

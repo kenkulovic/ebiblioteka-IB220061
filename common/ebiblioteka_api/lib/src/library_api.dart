@@ -199,15 +199,11 @@ class LibraryApi {
     return json.map((e) => Recommendation.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<int> recalculateRecommendations() async => await client.post('/api/recommendations/recalculate') as int;
-
   // ----------------------------------------------------------------- Clanovi
 
   Future<PagedResult<Member>> members({int page = 1, int pageSize = 10, String? search, bool? isBlocked}) =>
       _page('/api/members', Member.fromJson,
           page: page, pageSize: pageSize, search: search, extra: {'isBlocked': isBlocked});
-
-  Future<Member> member(int id) async => Member.fromJson(await client.get('/api/members/$id') as Map<String, dynamic>);
 
   Future<Member> me() async => Member.fromJson(await client.get('/api/members/me') as Map<String, dynamic>);
 
@@ -320,10 +316,6 @@ class LibraryApi {
   Future<Review> createReview(int loanId, int rating, String? comment) async =>
       Review.fromJson(await client.post('/api/reviews',
           body: {'loanId': loanId, 'rating': rating, 'comment': comment}) as Map<String, dynamic>);
-
-  Future<Review> updateReview(int id, int rating, String? comment) async =>
-      Review.fromJson(await client.put('/api/reviews/$id', body: {'rating': rating, 'comment': comment})
-          as Map<String, dynamic>);
 
   Future<PagedResult<Review>> bookReviews(int bookId, {int page = 1, int pageSize = 10}) =>
       _page('/api/books/$bookId/reviews', Review.fromJson, page: page, pageSize: pageSize);

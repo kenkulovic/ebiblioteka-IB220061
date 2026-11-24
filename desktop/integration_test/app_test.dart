@@ -264,6 +264,13 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Blokiraj'));
     await settle(tester);
 
+    // Dijalog ima dugme "X" koje ga zatvara bez promjene.
+    await tester.tap(find.byKey(const ValueKey('dialog-close')));
+    await settle(tester);
+    expect(find.byType(AlertDialog), findsNothing);
+    await tester.tap(find.widgetWithText(TextButton, 'Blokiraj'));
+    await settle(tester);
+
     // Razlog je obavezan: dugme je onemogućeno dok nema 10 znakova.
     final confirmButton = find.widgetWithText(FilledButton, 'Blokiraj');
     expect(tester.widget<FilledButton>(confirmButton).onPressed, isNull);
@@ -289,6 +296,17 @@ void main() {
     await waitFor(tester, find.text('Izvještaj o posudbama'));
     expect(find.text('Izvještaj o zakasninama i uplatama'), findsOneWidget);
     expect(find.text('Izvezi u PDF'), findsNWidgets(2));
-    expect(find.text('Najposuđivanije knjige'), findsOneWidget);
+    expect(find.textContaining('10 najposuđivanijih knjiga'), findsOneWidget);
+    expect(find.text('Posudbe po kategorijama'), findsOneWidget);
+    expect(find.textContaining('Članovi sa zakasninama'), findsOneWidget);
+    expect(find.byKey(const ValueKey('report-category')), findsOneWidget);
+    expect(find.byKey(const ValueKey('report-status')), findsOneWidget);
+
+    // Filter statusa: samo neplaćene zakasnine.
+    await tester.tap(find.byKey(const ValueKey('report-status')));
+    await settle(tester);
+    await tester.tap(find.text('Neplaćene').last);
+    await settle(tester);
+    await waitFor(tester, find.textContaining('Članovi sa zakasninama'));
   });
 }

@@ -34,6 +34,10 @@ Kopirajte šablon i po potrebi promijenite vrijednosti:
 Copy-Item .env.example .env
 ```
 
+`CORS_ORIGINS` je popis dozvoljenih origina (odvojenih zarezom) koji smiju zvati API iz preglednika; CORS je
+definisan na jednom mjestu (`Program.cs`) i ne dozvoljava nijedan drugi origin. Desktop i mobilna aplikacija nisu
+preglednik, pa na njih ne utiče.
+
 Pri predaji se `.env` isporučuje u zaštićenom arhivu `.env-tajne.zip` (lozinka je u opisu predaje).
 Raspakujte ga u korijen projekta.
 
@@ -115,7 +119,12 @@ Vrati uplatu**), uz razlog od najmanje 10 znakova; vraća se iznos koji je PayPa
 ## E-mailovi
 
 API stavlja e-mail u RabbitMQ red, a Worker ga stvarno šalje SMTP serverom. U razvoju je to Mailpit, pa se svi
-poslani e-mailovi vide na http://localhost:8025 (obavijest o uplati, povratu, potvrdi rezervacije, kod za reset lozinke).
+poslani e-mailovi vide na http://localhost:8025 (dobrodošlica pri registraciji, podsjetnik dan prije isteka roka
+povrata, obavijest o zakasnini, uplati, povratu i potvrdi rezervacije, kod za reset lozinke).
+
+Ako slanje ne uspije, Worker ponavlja pokušaj s eksponencijalnim razmakom (2 s, 4 s, ...), a poruka koja ne uspije ni
+nakon tri pokušaja ide u red `ebiblioteka.email.dead` radi ručnog pregleda. Podsjetnik o roku povrata šalje pozadinski
+posao API-ja (svaki sat; jednom po roku, a produženje roka traži novi podsjetnik).
 
 ## Testovi
 
@@ -137,7 +146,13 @@ mogao isprobati bez pravih ključeva; pravi PayPal se koristi samo uz ključeve 
 - **Baza**: SQL Server, Code First migracije, 16 vlastitih tabela uz Identity; strani ključevi s `Restrict` (brisanje
   korištenog zapisa vraća poruku s razlogom), filtrirani jedinstveni indeksi za pravila (jedna otvorena rezervacija,
   jedna aktivna posudba, jedna otvorena uplata po zakasnini).
-- **Sigurnost**: JWT, `[Authorize(Roles = ...)]`, Id korisnika se uvijek čita iz tokena.
+- **Sigurnost**: JWT (svaki token ima `jti`), `[Authorize(Roles = ...)]`, Id korisnika se uvijek čita iz tokena.
+  Odjava (`POST /api/auth/logout`) poništava token na serveru (tabela `RevokedTokens`), pa se on više ne prihvata ni
+  prije isteka; obje aplikacije pozivaju taj endpoint pri odjavi. Slike (naslovnica, vijest, profil) se primaju samo
+  kao PNG ili JPEG: provjerava se MIME tip zahtjeva i stvarni sadržaj (prvi bajtovi), a ne naziv fajla.
+- **Izvještaji**: dva PDF izvještaja (posudbe: period i neobavezno kategorija, 10 najposuđivanijih knjiga s prosječnom
+  ocjenom; zakasnine: period i neobavezno status, članovi sa zakasninama, naplaćeno po načinu plaćanja, povrati i
+  prosječno kašnjenje u danima).
 - **Rezervacije**: stanja Na čekanju → Potvrđena → Završena/Otkazana, uz historiju promjena (ko, kada, razlog; promjene
   koje radi sistem bilježe se kao "Sistem"). Rok preuzimanja (3 dana) provjerava pozadinski posao.
 - **Preporuke**: item-based collaborative filtering, objašnjivo; vidi `recommender-dokumentacija.md`.
@@ -164,7 +179,7 @@ Aplikacije imaju adresu API-ja upisanu pri izgradnji: Windows `http://localhost:
 
 - Mobilna aplikacija dozvoljava nešifrovan HTTP saobraćaj jer API u razvoju radi na `http` adresi u lokalnoj mreži.
   U stvarnom okruženju API bi bio iza HTTPS-a.
-- Blokiranom članu prijava je zabranjena, a postojeći token vrijedi do isteka (8 sati); rezervacija i posudba su
-  blokirani odmah, provjerom na serveru.
+- Blokiranom članu prijava je zabranjena, a već izdati token se odbija odmah (provjera pri svakom zahtjevu: token nije
+  poništen odjavom i račun nije blokiran); rezervacija i posudba su dodatno blokirani provjerom na serveru.
 - Font za PDF izvještaje (DejaVu Sans) isporučuje se uz API (`src/eBiblioteka.Api/Resources/Fonts`, licenca u istom folderu).
   PDF se pravi bibliotekom QuestPDF (Community licenca, besplatna za nekomercijalnu i akademsku upotrebu).
