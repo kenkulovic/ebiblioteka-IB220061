@@ -8,7 +8,7 @@ import '../ui/recommendation_tile.dart';
 import 'my_library_screen.dart';
 import 'recommendations_screen.dart';
 
-/// Početni ekran: vijesti biblioteke i preporuke knjiga s objašnjenjem.
+/// Početni ekran: sažetak aktivnih posudbi, preporuke s objašnjenjem i obavijesti biblioteke.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -17,6 +17,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const _maxLoans = 3;
+
   List<NewsItem>? _news;
   List<Loan>? _loans;
   List<Recommendation>? _recommendations;
@@ -92,7 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 12),
             Text(item.title, style: Theme.of(context).textTheme.titleLarge),
-            Text(formatDate(item.publishedAt), style: Theme.of(context).textTheme.bodySmall),
+            Text(formatDateTime(item.publishedAt), style: Theme.of(context).textTheme.bodySmall),
             const SizedBox(height: 12),
             Text(item.text),
           ]),
@@ -110,12 +112,12 @@ class _HomeScreenState extends State<HomeScreen> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(children: [
-          _sectionTitle('Vijesti'),
-          _newsSection(),
-          _sectionTitle('Moje posudbe'),
+          _sectionTitle(_loans == null ? 'Moje posudbe' : 'Moje posudbe (${_loans!.length} od $_maxLoans)'),
           ..._loansSection(),
           _sectionTitle('Preporučeno za vas'),
           ..._recommendationSection(),
+          _sectionTitle('Obavijesti biblioteke'),
+          _newsSection(),
           const SizedBox(height: 16),
         ]),
       ),
@@ -135,48 +137,23 @@ class _HomeScreenState extends State<HomeScreen> {
       return const SizedBox(height: 150, child: Center(child: CircularProgressIndicator()));
     }
     if (_news!.isEmpty) {
-      return const Padding(padding: EdgeInsets.all(16), child: Text('Trenutno nema vijesti.'));
+      return const Padding(padding: EdgeInsets.all(16), child: Text('Trenutno nema obavijesti.'));
     }
 
-    return SizedBox(
-      height: 240,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _news!.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          final item = _news![index];
-          return SizedBox(
-            width: 270,
-            child: Card(
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () => _openNews(item),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  ApiImage(
-                    url: _api.newsImageUrl(item.id),
-                    width: 270,
-                    height: 110,
-                    radius: 0,
-                    icon: Icons.image,
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(item.title,
-                          style: Theme.of(context).textTheme.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 4),
-                      Text(item.text, maxLines: 3, overflow: TextOverflow.ellipsis),
-                    ]),
-                  ),
-                ]),
-              ),
-            ),
-          );
-        },
-      ),
-    );
+    // Najnovija je prva; dodir otvara puni tekst.
+    return Column(children: [
+      for (final item in _news!)
+        Card(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          child: ListTile(
+            key: ValueKey('news-${item.id}'),
+            onTap: () => _openNews(item),
+            leading: ApiImage(url: _api.newsImageUrl(item.id), width: 72, height: 48, icon: Icons.image),
+            title: Text(item.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+            subtitle: Text(formatDateTime(item.publishedAt)),
+          ),
+        ),
+    ]);
   }
 
   List<Widget> _loansSection() {
@@ -193,7 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
       for (final loan in loans)
         ListTile(
           dense: true,
-          leading: const Icon(Icons.menu_book),
+          leading: ApiImage(url: loan.bookHasCover ? _api.bookCoverUrl(loan.bookId) : null, width: 34, height: 48),
           title: Text(loan.bookTitle),
           trailing: Text(
             'Rok: ${formatDate(loan.dueDate)}',

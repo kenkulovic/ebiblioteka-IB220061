@@ -541,6 +541,9 @@ namespace eBiblioteka.Api.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("CreatedByUserId")
+                        .HasColumnType("int");
+
                     b.Property<byte[]>("Image")
                         .IsRequired()
                         .HasColumnType("varbinary(max)");
@@ -559,6 +562,8 @@ namespace eBiblioteka.Api.Data.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
 
                     b.ToTable("News");
                 });
@@ -579,8 +584,8 @@ namespace eBiblioteka.Api.Data.Migrations
 
                     b.Property<string>("Text")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -824,12 +829,17 @@ namespace eBiblioteka.Api.Data.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ExpiresAt");
 
                     b.HasIndex("Jti")
                         .IsUnique();
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("RevokedTokens");
                 });
@@ -1019,6 +1029,17 @@ namespace eBiblioteka.Api.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("eBiblioteka.Api.Data.Entities.News", b =>
+                {
+                    b.HasOne("eBiblioteka.Api.Data.Entities.ApplicationUser", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByUser");
+                });
+
             modelBuilder.Entity("eBiblioteka.Api.Data.Entities.Notification", b =>
                 {
                     b.HasOne("eBiblioteka.Api.Data.Entities.ApplicationUser", "User")
@@ -1119,6 +1140,17 @@ namespace eBiblioteka.Api.Data.Migrations
                     b.Navigation("Book");
 
                     b.Navigation("Loan");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("eBiblioteka.Api.Data.Entities.RevokedToken", b =>
+                {
+                    b.HasOne("eBiblioteka.Api.Data.Entities.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });

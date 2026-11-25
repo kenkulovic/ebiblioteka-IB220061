@@ -110,7 +110,7 @@ class _MembersScreenState extends State<MembersScreen> {
           ),
         ),
       ],
-      columns: const ['', 'Član', 'Broj karte', 'E-mail', 'Grad', 'Posudbe', 'Rezerv.', 'Neplaćeno', 'Status', ''],
+      columns: const ['', 'Član', 'Broj karte', 'Grad', 'Posudbe', 'Rezerv.', 'Neplaćeno', 'Status', ''],
       fetch: (page, search) => api.members(page: page, search: search, isBlocked: _blocked, cityId: _cityId),
       rowBuilder: (m, reload) => DataRow(cells: [
         DataCell(ApiImage(
@@ -121,7 +121,6 @@ class _MembersScreenState extends State<MembersScreen> {
         )),
         DataCell(TextButton(onPressed: () => _details(m), child: Text(m.fullName))),
         DataCell(Text(m.membershipNumber)),
-        DataCell(Text(m.email)),
         DataCell(Text(m.cityName)),
         DataCell(Text('${m.activeLoans}')),
         DataCell(Text('${m.openReservations}')),
@@ -133,9 +132,16 @@ class _MembersScreenState extends State<MembersScreen> {
                 child: Text('Blokiran', style: TextStyle(color: Theme.of(context).colorScheme.error)),
               )
             : const Text('Aktivan')),
-        DataCell(m.isBlocked
-            ? TextButton(onPressed: () => _unblock(m), child: const Text('Odblokiraj'))
-            : TextButton(onPressed: () => _block(m), child: const Text('Blokiraj'))),
+        DataCell(Row(children: [
+          TextButton(
+            key: ValueKey('member-details-${m.id}'),
+            onPressed: () => _details(m),
+            child: const Text('Detalji'),
+          ),
+          m.isBlocked
+              ? TextButton(onPressed: () => _unblock(m), child: const Text('Odblokiraj'))
+              : TextButton(onPressed: () => _block(m), child: const Text('Blokiraj')),
+        ])),
       ]),
     );
   }
@@ -156,15 +162,26 @@ class _MemberDetailsDialog extends StatelessWidget {
       title: DialogTitle('Član: ${member.fullName}'),
       content: SizedBox(
         width: 640,
-        height: 460,
+        height: 520,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Wrap(spacing: 24, runSpacing: 4, children: [
-            Text('Broj karte: ${member.membershipNumber}'),
-            Text('E-mail: ${member.email}'),
-            Text('Telefon: ${member.phoneNumber ?? '—'}'),
-            Text('Grad: ${member.cityName}'),
-            Text('Član od: ${formatDate(member.createdAt)}'),
-            Text(member.isBlocked ? 'Status: blokiran (${member.blockReason ?? ''})' : 'Status: aktivan'),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            ApiImage(
+              url: member.hasProfileImage ? api.memberImageUrl(member.id) : null,
+              width: 80,
+              height: 80,
+              icon: Icons.person,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Wrap(spacing: 24, runSpacing: 4, children: [
+                Text('Broj karte: ${member.membershipNumber}'),
+                Text('E-mail: ${member.email}'),
+                Text('Telefon: ${member.phoneNumber ?? '—'}'),
+                Text('Grad: ${member.cityName}'),
+                Text('Član od: ${formatDate(member.createdAt)}'),
+                Text(member.isBlocked ? 'Status: blokiran (${member.blockReason ?? ''})' : 'Status: aktivan'),
+              ]),
+            ),
           ]),
           const SizedBox(height: 12),
           Expanded(
@@ -175,9 +192,10 @@ class _MemberDetailsDialog extends StatelessWidget {
                 Expanded(
                   child: TabBarView(children: [
                     _HistoryList<Loan>(
-                      load: () async => (await api.loans(userId: member.id, pageSize: 50)).items,
+                      load: (search) async => (await api.loans(userId: member.id, search: search, pageSize: 50)).items,
                       line: (l) => ListTile(
                         dense: true,
+                        leading: ApiImage(url: l.bookHasCover ? api.bookCoverUrl(l.bookId) : null, width: 30, height: 42),
                         title: Text(l.bookTitle),
                         subtitle: Text('Posuđeno ${formatDate(l.loanDate)}, rok ${formatDate(l.dueDate)}'
                             '${l.returnDate == null ? '' : ', vraćeno ${formatDate(l.returnDate)}'}'),
@@ -185,18 +203,21 @@ class _MemberDetailsDialog extends StatelessWidget {
                       ),
                     ),
                     _HistoryList<Reservation>(
-                      load: () async => (await api.reservations(userId: member.id, pageSize: 50)).items,
+                      load: (search) async =>
+                          (await api.reservations(userId: member.id, search: search, pageSize: 50)).items,
                       line: (r) => ListTile(
                         dense: true,
+                        leading: ApiImage(url: r.bookHasCover ? api.bookCoverUrl(r.bookId) : null, width: 30, height: 42),
                         title: Text(r.bookTitle),
                         subtitle: Text('Rezervisano ${formatDate(r.createdAt)}'),
                         trailing: Text(Labels.reservationStatus(r.status)),
                       ),
                     ),
                     _HistoryList<Fine>(
-                      load: () async => (await api.fines(userId: member.id, pageSize: 50)).items,
+                      load: (search) async => (await api.fines(userId: member.id, search: search, pageSize: 50)).items,
                       line: (f) => ListTile(
                         dense: true,
+                        leading: ApiImage(url: f.bookHasCover ? api.bookCoverUrl(f.bookId) : null, width: 30, height: 42),
                         title: Text(f.bookTitle),
                         subtitle: Text('${f.daysLate} d. kašnjenja, ${formatKm(f.amount)}'),
                         trailing: Text(Labels.fineStatus(f.status)),
@@ -217,7 +238,7 @@ class _MemberDetailsDialog extends StatelessWidget {
 class _HistoryList<T> extends StatefulWidget {
   const _HistoryList({required this.load, required this.line});
 
-  final Future<List<T>> Function() load;
+  final Future<List<T>> Function(String search) load;
   final Widget Function(T item) line;
 
   @override
@@ -225,23 +246,46 @@ class _HistoryList<T> extends StatefulWidget {
 }
 
 class _HistoryListState<T> extends State<_HistoryList<T>> {
-  late final Future<List<T>> _future = widget.load();
+  late Future<List<T>> _future = widget.load('');
+
+  void _search(String text) => setState(() {
+        _future = widget.load(text.trim());
+      });
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<T>>(
-      future: _future,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          final error = snapshot.error;
-          return Center(child: Text(error is ApiException ? error.message : 'Podaci nisu dostupni.'));
-        }
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: TextField(
+          key: const ValueKey('history-search'),
+          decoration: const InputDecoration(
+            hintText: 'Pretraga po naslovu knjige (Enter)',
+            prefixIcon: Icon(Icons.search),
+            border: OutlineInputBorder(),
+            isDense: true,
+          ),
+          onSubmitted: _search,
+        ),
+      ),
+      Expanded(
+        child: FutureBuilder<List<T>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              final error = snapshot.error;
+              return Center(child: Text(error is ApiException ? error.message : 'Podaci nisu dostupni.'));
+            }
 
-        final items = snapshot.data!;
-        if (items.isEmpty) return const Center(child: Text('Nema zapisa.'));
-        return ListView(children: [for (final item in items) widget.line(item)]);
-      },
-    );
+            final items = snapshot.data!;
+            if (items.isEmpty) return const Center(child: Text('Nema zapisa.'));
+            return ListView(children: [for (final item in items) widget.line(item)]);
+          },
+        ),
+      ),
+    ]);
   }
 }

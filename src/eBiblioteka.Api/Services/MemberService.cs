@@ -78,15 +78,7 @@ public class MemberService : IMemberService
         user.CityId = dto.CityId;
         user.PhoneNumber = string.IsNullOrWhiteSpace(dto.PhoneNumber) ? null : dto.PhoneNumber.Trim();
 
-        var email = dto.Email.Trim();
-        if (!string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase))
-        {
-            var emailResult = await _userManager.SetEmailAsync(user, email);
-            if (!emailResult.Succeeded)
-            {
-                throw IdentityErrors.ToException(emailResult);
-            }
-        }
+        user.Email = dto.Email.Trim();
 
         var result = await _userManager.UpdateAsync(user);
         if (!result.Succeeded)

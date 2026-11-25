@@ -62,7 +62,20 @@ void main() {
     expect(details.history, isNotEmpty);
 
     expect((await admin.loans(filter: 'Overdue')).items, isA<List<Loan>>());
-    expect((await admin.fines()).items, isNotEmpty);
+    final fines = (await admin.fines()).items;
+    expect(fines, isNotEmpty);
+    expect(await admin.finePayments(fines.first.id), isA<List<Payment>>());
+    expect((await admin.loans(dueTo: DateTime(2000))).totalCount, 0);
+    expect((await admin.loans(dueTo: DateTime(2100))).totalCount, greaterThan(0));
+  });
+
+  test('gradovi za registraciju dostupni su bez prijave', () async {
+    final anonymous = LibraryApi(ApiClient(baseUrl: baseUrl));
+    expect(await anonymous.registrationCities(), isNotEmpty);
+    await expectLater(
+      () => anonymous.cities(),
+      throwsA(isA<ApiException>().having((e) => e.statusCode, 'status', 401)),
+    );
   });
 
   test('moje stvari (clan)', () async {
@@ -75,7 +88,7 @@ void main() {
     expect((await member.me()).membershipNumber, startsWith('CL-'));
   });
 
-  test('vijesti sa slikom', () async {
+  test('obavijesti sa slikom', () async {
     final news = await member.news();
     expect(news.items, isNotEmpty);
     final image = await member.client.getBytes('/api/news/${news.items.first.id}/image');

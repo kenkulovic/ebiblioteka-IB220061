@@ -49,12 +49,6 @@ public class AuthService : IAuthService
             throw new UnauthorizedException("Pogrešno korisničko ime ili lozinka.");
         }
 
-        if (user.IsBlocked)
-        {
-            _logger.LogWarning("Blokiran korisnik {UserName} pokušao se prijaviti", request.UserName);
-            throw new ForbiddenException("Vaš račun je blokiran. Obratite se biblioteci.");
-        }
-
         var roles = await _userManager.GetRolesAsync(user);
         var token = await _jwtService.CreateTokenAsync(user);
 
@@ -128,7 +122,7 @@ public class AuthService : IAuthService
         return await LoginAsync(new LoginRequestDto { UserName = dto.UserName.Trim(), Password = dto.Password });
     }
 
-    public Task LogoutAsync(string accessToken) => _revocation.RevokeAsync(accessToken);
+    public Task LogoutAsync(string accessToken, int userId) => _revocation.RevokeAsync(accessToken, userId);
 
     public async Task ForgotPasswordAsync(ForgotPasswordDto dto)
     {
@@ -165,9 +159,14 @@ public class AuthService : IAuthService
             throw new ConflictException("Previše neispravnih pokušaja. Pokušajte ponovo kasnije.");
         }
 
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+
         var result = await _userManager.ResetPasswordAsync(user, dto.Code.Trim(), dto.NewPassword);
         if (!result.Succeeded)
         {
+            // Brojač promašaja mora ostati zapisan, pa se snima izvan transakcije.
+            await transaction.RollbackAsync();
+
             if (result.Errors.Any(e => e.Code == nameof(IdentityErrorDescriber.InvalidToken)))
             {
                 await _userManager.AccessFailedAsync(user);
@@ -178,6 +177,7 @@ public class AuthService : IAuthService
         }
 
         await _userManager.ResetAccessFailedCountAsync(user);
+        await transaction.CommitAsync();
         _logger.LogInformation("Lozinka korisnika {UserId} je promijenjena kodom iz e-maila", user.Id);
     }
 

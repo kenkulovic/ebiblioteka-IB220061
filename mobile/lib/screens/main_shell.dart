@@ -8,7 +8,7 @@ import 'my_library_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
 
-/// Okvir aplikacije za prijavljenog člana: donja navigacija s brojačem nepročitanih obavijesti.
+/// Okvir aplikacije za prijavljenog člana: donja navigacija s brojačem nepročitanih notifikacija.
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
@@ -40,11 +40,11 @@ class _MainShellState extends State<MainShell> {
         destinations: [
           const NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Početna'),
           const NavigationDestination(icon: Icon(Icons.menu_book_outlined), selectedIcon: Icon(Icons.menu_book), label: 'Katalog'),
-          const NavigationDestination(icon: Icon(Icons.bookmarks_outlined), selectedIcon: Icon(Icons.bookmarks), label: 'Moje knjige'),
+          const NavigationDestination(icon: Icon(Icons.bookmarks_outlined), selectedIcon: Icon(Icons.bookmarks), label: 'Posudbe'),
           NavigationDestination(
             icon: Badge(isLabelVisible: unread > 0, label: Text('$unread'), child: const Icon(Icons.notifications_outlined)),
             selectedIcon: Badge(isLabelVisible: unread > 0, label: Text('$unread'), child: const Icon(Icons.notifications)),
-            label: 'Obavijesti',
+            label: 'Notifikacije',
           ),
           const NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profil'),
         ],

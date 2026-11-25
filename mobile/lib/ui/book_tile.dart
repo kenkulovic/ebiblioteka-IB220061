@@ -48,7 +48,7 @@ class BookTile extends StatelessWidget {
                 ]),
                 const SizedBox(height: 4),
                 Text(
-                  available ? 'Dostupno: ${book.availableCopies} od ${book.totalCopies}' : 'Trenutno nije dostupna',
+                  available ? 'Dostupno: ${book.availableCopies} od ${book.totalCopies}' : 'Nedostupno',
                   style: TextStyle(color: available ? Colors.green.shade700 : scheme.error, fontSize: 12),
                 ),
                 if (footer != null) ...[const SizedBox(height: 6), footer!],

@@ -22,19 +22,19 @@ class LookupsScreen extends StatelessWidget {
     return DefaultTabController(
       length: 4,
       child: Column(children: [
-        const TabBar(tabs: [Tab(text: 'Države'), Tab(text: 'Gradovi'), Tab(text: 'Kategorije'), Tab(text: 'Izdavači')]),
+        const TabBar(tabs: [Tab(text: 'Kategorije'), Tab(text: 'Gradovi'), Tab(text: 'Države'), Tab(text: 'Izdavači')]),
         const SizedBox(height: 12),
         Expanded(
           child: TabBarView(children: [
             _LookupTab<Lookup>(
-              singular: 'državu',
-              fetch: (page, search) => api.lookups('countries', page: page, search: search, newestFirst: true),
+              singular: 'kategoriju',
+              fetch: (page, search) => api.lookups('categories', page: page, search: search, newestFirst: true),
               idOf: (c) => c.id,
               nameOf: (c) => c.name,
               usageOf: (c) => c.usageCount,
-              create: (name, _) => api.createLookup('countries', name),
-              update: (id, name, _) => api.updateLookup('countries', id, name),
-              delete: (id) => api.deleteLookup('countries', id),
+              create: (name, _) => api.createLookup('categories', name),
+              update: (id, name, _) => api.updateLookup('categories', id, name),
+              delete: (id) => api.deleteLookup('categories', id),
             ),
             _LookupTab<City>(
               singular: 'grad',
@@ -51,14 +51,14 @@ class LookupsScreen extends StatelessWidget {
               delete: (id) => api.deleteCity(id),
             ),
             _LookupTab<Lookup>(
-              singular: 'kategoriju',
-              fetch: (page, search) => api.lookups('categories', page: page, search: search, newestFirst: true),
+              singular: 'državu',
+              fetch: (page, search) => api.lookups('countries', page: page, search: search, newestFirst: true),
               idOf: (c) => c.id,
               nameOf: (c) => c.name,
               usageOf: (c) => c.usageCount,
-              create: (name, _) => api.createLookup('categories', name),
-              update: (id, name, _) => api.updateLookup('categories', id, name),
-              delete: (id) => api.deleteLookup('categories', id),
+              create: (name, _) => api.createLookup('countries', name),
+              update: (id, name, _) => api.updateLookup('countries', id, name),
+              delete: (id) => api.deleteLookup('countries', id),
             ),
             _LookupTab<Publisher>(
               singular: 'izdavača',
@@ -128,6 +128,21 @@ class _LookupTabState<T> extends State<_LookupTab<T>> with AutomaticKeepAliveCli
   bool get wantKeepAlive => true;
 
   Future<void> _edit(T? item) async {
+    // Forma se ne otvara dok ne postoji zapis na koji se stavka mora vezati (npr. država za grad).
+    if (widget.loadReferences != null) {
+      try {
+        final references = await widget.loadReferences!();
+        if (!mounted) return;
+        if (references.isEmpty) {
+          showMessage(context, 'Prvo dodajte stavku "${widget.referenceLabel}".', error: true);
+          return;
+        }
+      } on ApiException catch (e) {
+        if (mounted) showMessage(context, e.message, error: true);
+        return;
+      }
+    }
+
     final saved = await showDialog<bool>(
       context: context,
       builder: (_) => _LookupFormDialog(

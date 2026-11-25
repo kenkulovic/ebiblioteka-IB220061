@@ -108,7 +108,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
       context,
       () => _api.createReservation(book.id),
       success: book.availableCopies > 0
-          ? 'Rezervacija knjige "${book.title}" je poslana. Dobit ćete obavijest kad je bibliotekar potvrdi.'
+          ? 'Rezervacija knjige "${book.title}" je poslana. Dobit ćete notifikaciju kad je bibliotekar potvrdi.'
           : 'Zahtjev za knjigu "${book.title}" je poslan. Biće obrađen čim se oslobodi primjerak.',
     );
 
@@ -185,7 +185,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
       FilledButton.icon(
         onPressed: _reserving || _check?.canReserve == false ? null : _reserve,
         icon: const Icon(Icons.bookmark_add),
-        label: Text(available ? 'Rezerviši' : 'Pošalji zahtjev za rezervaciju'),
+        label: const Text('Rezerviši knjigu'),
       ),
       if (_check?.canReserve == false && _check?.reason != null)
         Padding(

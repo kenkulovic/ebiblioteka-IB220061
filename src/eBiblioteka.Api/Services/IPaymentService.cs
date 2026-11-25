@@ -9,5 +9,5 @@ public interface IPaymentService
     Task<PaymentDto> CancelAsync(int userId, int paymentId);
     Task<PaymentDto> RefundAsync(int adminId, int paymentId, string reason);
     Task<PaymentDto> GetByIdAsync(int paymentId, int actorId, bool isAdmin);
-    Task<List<PaymentDto>> GetForFineAsync(int fineId);
+    Task<PagedResultDto<PaymentDto>> GetForFineAsync(int fineId, PagedQueryDto query);
 }

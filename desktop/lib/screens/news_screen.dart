@@ -10,7 +10,7 @@ import '../ui/api_image.dart';
 import '../ui/dialogs.dart';
 import '../ui/paged_list_view.dart';
 
-/// Vijesti koje članovi vide na početnom ekranu mobilne aplikacije.
+/// Obavijesti biblioteke koje članovi vide na početnom ekranu mobilne aplikacije.
 class NewsScreen extends StatefulWidget {
   const NewsScreen({super.key});
 
@@ -29,14 +29,14 @@ class _NewsScreenState extends State<NewsScreen> {
   Future<void> _delete(NewsItem item) async {
     final ok = await confirm(
       context,
-      title: 'Brisanje vijesti',
-      message: 'Obrisati vijest "${item.title}"?',
+      title: 'Brisanje obavijesti',
+      message: 'Obrisati obavijest "${item.title}"?',
       confirmText: 'Obriši',
     );
     if (!ok || !mounted) return;
 
     final api = context.read<AppState>().api;
-    final done = await runAction(context, () => api.deleteNews(item.id), success: 'Vijest je obrisana.');
+    final done = await runAction(context, () => api.deleteNews(item.id), success: 'Obavijest je obrisana.');
     if (done) _listKey.currentState?.reload();
   }
 
@@ -46,9 +46,9 @@ class _NewsScreenState extends State<NewsScreen> {
 
     return PagedListView<NewsItem>(
       key: _listKey,
-      searchHint: 'Naslov ili tekst',
+      searchHint: 'Naslov obavijesti',
       trailing: [
-        FilledButton.icon(onPressed: () => _edit(null), icon: const Icon(Icons.add), label: const Text('Nova vijest')),
+        FilledButton.icon(onPressed: () => _edit(null), icon: const Icon(Icons.add), label: const Text('Nova obavijest')),
       ],
       columns: const ['', 'Naslov', 'Tekst', 'Objavljeno', ''],
       fetch: (page, search) => api.news(page: page, search: search),
@@ -108,7 +108,7 @@ class _NewsDialogState extends State<_NewsDialog> {
 
     final creating = widget.item == null;
     if (creating && _image == null) {
-      setState(() => _error = 'Slika vijesti je obavezna.');
+      setState(() => _error = 'Slika obavijesti je obavezna.');
       return;
     }
 
@@ -126,7 +126,7 @@ class _NewsDialogState extends State<_NewsDialog> {
             imageName: _imageName, imageBytes: _image);
       }
       if (mounted) {
-        showMessage(context, 'Vijest "${_title.text.trim()}" je ${creating ? 'objavljena' : 'sačuvana'}.');
+        showMessage(context, 'Obavijest "${_title.text.trim()}" je ${creating ? 'objavljena' : 'sačuvana'}.');
         Navigator.pop(context, true);
       }
     } on ApiException catch (e) {
@@ -144,7 +144,7 @@ class _NewsDialogState extends State<_NewsDialog> {
     final api = context.read<AppState>().api;
 
     return AlertDialog(
-      title: DialogTitle(widget.item == null ? 'Nova vijest' : 'Izmjena vijesti'),
+      title: DialogTitle(widget.item == null ? 'Nova obavijest' : 'Izmjena obavijesti'),
       content: SizedBox(
         width: 520,
         child: Form(

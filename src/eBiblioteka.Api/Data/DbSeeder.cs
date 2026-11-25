@@ -67,7 +67,8 @@ public static partial class DbSeeder
             LastName = lastName,
             MembershipNumber = membershipNumber,
             CityId = cityId,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            ProfileImage = await ReadProfileImageAsync(userName)
         };
 
         var result = await userManager.CreateAsync(user, "test");
@@ -79,6 +80,12 @@ public static partial class DbSeeder
 
         await userManager.AddToRoleAsync(user, role);
     }
+    private static async Task<byte[]?> ReadProfileImageAsync(string userName)
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "SeedData", "Users", userName + ".png");
+        return File.Exists(path) ? await File.ReadAllBytesAsync(path) : null;
+    }
+
     // Stalan (ponovljiv) izmišljen broj telefona izveden iz broja članske karte.
     private static string PhoneFor(string membershipNumber)
     {

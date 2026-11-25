@@ -7,4 +7,8 @@ public class News
     public string Text { get; set; } = string.Empty;
     public byte[] Image { get; set; } = Array.Empty<byte>();
     public DateTime PublishedAt { get; set; } = DateTime.UtcNow;
+
+    // Bibliotekar koji je objavio obavijest.
+    public int CreatedByUserId { get; set; }
+    public ApplicationUser CreatedByUser { get; set; } = null!;
 }

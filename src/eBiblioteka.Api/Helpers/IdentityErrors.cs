@@ -17,9 +17,9 @@ public static class IdentityErrors
             nameof(IdentityErrorDescriber.DuplicateEmail) =>
                 new ConflictException("E-mail adresa je već u upotrebi."),
             nameof(IdentityErrorDescriber.InvalidEmail) =>
-                new BadRequestException("E-mail adresa nije ispravna."),
+                new BadRequestException("Unesite e-mail adresu u formatu ime@domena.ba."),
             nameof(IdentityErrorDescriber.InvalidUserName) =>
-                new BadRequestException("Korisničko ime sadrži nedozvoljene znakove."),
+                new BadRequestException("Korisničko ime smije sadržavati slova bez kvačica (a-z), cifre i znakove - . _ @ +."),
             nameof(IdentityErrorDescriber.PasswordTooShort) =>
                 new BadRequestException("Lozinka je prekratka (najmanje 4 znaka)."),
             nameof(IdentityErrorDescriber.InvalidToken) =>

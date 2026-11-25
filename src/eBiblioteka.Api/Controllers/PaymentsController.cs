@@ -26,8 +26,8 @@ public class PaymentsController : ControllerBase
 
     [HttpGet("api/fines/{fineId:int}/payments")]
     [Authorize(Roles = Roles.Administrator)]
-    public async Task<ActionResult<List<PaymentDto>>> GetForFine(int fineId)
-        => Ok(await _service.GetForFineAsync(fineId));
+    public async Task<ActionResult<PagedResultDto<PaymentDto>>> GetForFine(int fineId, [FromQuery] PagedQueryDto query)
+        => Ok(await _service.GetForFineAsync(fineId, query));
 
     [HttpGet("api/payments/{id:int}")]
     public async Task<ActionResult<PaymentDto>> GetById(int id)

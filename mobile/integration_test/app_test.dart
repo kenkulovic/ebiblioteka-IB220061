@@ -4,6 +4,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:ebiblioteka_api/ebiblioteka_api.dart';
 import 'package:ebiblioteka_mobile/main.dart' as app;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -93,7 +94,7 @@ Future<void> openTab(WidgetTester tester, String label) async {
 }
 
 Future<void> openLibraryTab(WidgetTester tester, String label) async {
-  await openTab(tester, 'Moje knjige');
+  await openTab(tester, 'Posudbe');
   await tester.tap(find.descendant(of: find.byType(TabBar), matching: find.text(label)));
   await settle(tester);
 }
@@ -150,19 +151,37 @@ void main() {
     await waitFor(tester, find.textContaining('namijenjena članovima'));
   });
 
-  testWidgets('pocetna: vijesti i preporuke s objasnjenjem', (tester) async {
+  testWidgets('pocetna: posudbe, preporuke s objasnjenjem i obavijesti', (tester) async {
     await startApp(tester);
     await login(tester, 'mobile', 'test');
 
     await waitFor(tester, find.text('Dobrodošli, Lejla'));
-    // Vijesti idu od najnovije: prva kartica je vidljiva bez listanja.
-    await waitFor(tester, find.text('Preporuke za vas'));
+    await waitFor(tester, find.textContaining('od 3)'));
     await waitFor(tester, find.textContaining('Zato što ste visoko ocijenili'));
-    expect(find.text('Tvrđava'), findsOneWidget);
+    await scrollTo(tester, find.text('Tvrđava'));
 
-    // Vijest se otvara u donjem listu.
+    // Obavijesti biblioteke idu od najnovije; dodir otvara puni tekst.
+    await scrollTo(tester, find.text('Preporuke za vas'));
     await tester.tap(find.text('Preporuke za vas'));
     await waitFor(tester, find.textContaining('prijedloge knjiga'));
+  });
+
+  testWidgets('blokiran clan se prijavi i vidi razlog blokade', (tester) async {
+    final admin = LibraryApi(ApiClient(baseUrl: app.apiBaseUrl));
+    await admin.login('desktop', 'test');
+    final emir = (await admin.members(search: 'Emir')).items.single;
+    await admin.blockMember(emir.id, 'Probna blokada za test.');
+    addTearDown(() => admin.unblockMember(emir.id));
+
+    await startApp(tester);
+    await login(tester, 'emir', 'test');
+    await waitFor(tester, find.text('Dobrodošli, Emir'));
+    await openTab(tester, 'Katalog');
+    await waitFor(tester, find.text('Derviš i smrt'));
+    await tester.tap(find.text('Derviš i smrt'));
+    await waitFor(tester, find.byKey(const ValueKey('reserve-reason')));
+    expect(find.textContaining('Račun je blokiran: Probna blokada za test.'), findsOneWidget);
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Rezerviši knjigu')).onPressed, isNull);
   });
 
   testWidgets('katalog, detalji knjige, rezervacija i otkazivanje', (tester) async {
@@ -185,7 +204,7 @@ void main() {
     expect(find.textContaining('Dostupno primjeraka'), findsOneWidget);
     await waitFor(tester, find.text('Slične knjige'));
 
-    await tapVisible(tester, find.widgetWithText(FilledButton, 'Rezerviši'));
+    await tapVisible(tester, find.widgetWithText(FilledButton, 'Rezerviši knjigu'));
     await waitFor(tester, find.widgetWithText(FilledButton, 'Pošalji'));
     await tester.tap(find.widgetWithText(FilledButton, 'Pošalji'));
     await waitFor(tester, find.textContaining('Rezervacija knjige "1984" je poslana'));
@@ -194,7 +213,7 @@ void main() {
     // Ista knjiga ponovo: dugme je onemogućeno uz objašnjenje razloga.
     await waitFor(tester, find.byKey(const ValueKey('reserve-reason')));
     expect(find.textContaining('Već imate otvorenu rezervaciju'), findsOneWidget);
-    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Rezerviši')).onPressed, isNull);
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Rezerviši knjigu')).onPressed, isNull);
 
     await goBack(tester);
     await settle(tester);
@@ -314,13 +333,17 @@ void main() {
     // Pogresan kod.
     await setText(tester, find.widgetWithText(TextFormField, 'Kod iz e-maila'), '000000');
     await setText(tester, find.widgetWithText(TextFormField, 'Nova lozinka'), 'novalozinka');
-    await tester.tap(find.widgetWithText(FilledButton, 'Promijeni lozinku'));
+    await setText(tester, find.widgetWithText(TextFormField, 'Potvrda nove lozinke'), 'drugacija');
+    await tapVisible(tester, find.widgetWithText(FilledButton, 'Promijeni lozinku'));
+    await waitFor(tester, find.text('Lozinke se ne poklapaju.'));
+    await setText(tester, find.widgetWithText(TextFormField, 'Potvrda nove lozinke'), 'novalozinka');
+    await tapVisible(tester, find.widgetWithText(FilledButton, 'Promijeni lozinku'));
     await waitFor(tester, find.text('Kod nije ispravan ili je istekao.'));
 
     // Pravi kod stize e-mailom preko RabbitMQ-a i Workera.
     final code = await latestResetCode('sara@ebiblioteka.local');
     await setText(tester, find.widgetWithText(TextFormField, 'Kod iz e-maila'), code);
-    await tester.tap(find.widgetWithText(FilledButton, 'Promijeni lozinku'));
+    await tapVisible(tester, find.widgetWithText(FilledButton, 'Promijeni lozinku'));
     await waitFor(tester, find.text('Lozinka je promijenjena. Prijavite se novom lozinkom.'));
     await waitFor(tester, find.widgetWithText(FilledButton, 'Prijavi se'));
 
@@ -335,6 +358,7 @@ void main() {
     await settle(tester);
     await setText(tester, find.widgetWithText(TextFormField, 'Trenutna lozinka'), 'pogresna');
     await setText(tester, find.widgetWithText(TextFormField, 'Nova lozinka'), 'test');
+    await setText(tester, find.widgetWithText(TextFormField, 'Potvrda nove lozinke'), 'test');
     await tapVisible(tester, find.widgetWithText(FilledButton, 'Promijeni lozinku'));
     await waitFor(tester, find.text('Trenutna lozinka nije ispravna.'));
     await waitGone(tester, find.text('Trenutna lozinka nije ispravna.'));
@@ -356,10 +380,10 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await waitFor(tester, find.text('Orlovi rano lete'));
     await tester.tap(find.text('Orlovi rano lete'));
-    await waitFor(tester, find.widgetWithText(FilledButton, 'Rezerviši'));
+    await waitFor(tester, find.widgetWithText(FilledButton, 'Rezerviši knjigu'));
     await waitFor(tester, find.byKey(const ValueKey('reserve-reason')));
     expect(find.textContaining('neplaćena zakasnina'), findsOneWidget);
-    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Rezerviši')).onPressed, isNull);
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Rezerviši knjigu')).onPressed, isNull);
     // Uz razlog ograničenja nudi se poveznica na zakasnine.
     expect(find.byKey(const ValueKey('reserve-my-fines')), findsOneWidget);
     await goBack(tester);
@@ -387,14 +411,14 @@ void main() {
     expect(find.textContaining('Dok postoji neplaćena zakasnina'), findsNothing);
   });
 
-  testWidgets('obavijesti: lista, procitano i broj nepročitanih', (tester) async {
+  testWidgets('notifikacije: lista, procitano i broj nepročitanih', (tester) async {
     await startApp(tester);
     await login(tester, 'amra', 'test');
     await waitFor(tester, find.text('Dobrodošli, Amra'));
 
     // Neprocitana obavijest ima brojac na kartici.
     await waitFor(tester, find.byType(Badge));
-    await openTab(tester, 'Obavijesti');
+    await openTab(tester, 'Notifikacije');
     await waitFor(tester, find.text('Rezervacija potvrđena'));
 
     await tester.tap(find.text('Rezervacija potvrđena'));
@@ -417,7 +441,7 @@ void main() {
     await setText(tester, find.widgetWithText(TextFormField, 'E-mail'), 'nije-email');
     await tapVisible(tester, find.text('Sačuvaj podatke'));
     await settle(tester);
-    expect(find.text('Unesite ispravnu e-mail adresu.'), findsOneWidget);
+    expect(find.text('Unesite e-mail adresu u formatu ime@domena.ba.'), findsOneWidget);
 
     // Izmjena i povratak.
     await setText(tester, find.widgetWithText(TextFormField, 'E-mail'), 'tarik.novi@ebiblioteka.local');

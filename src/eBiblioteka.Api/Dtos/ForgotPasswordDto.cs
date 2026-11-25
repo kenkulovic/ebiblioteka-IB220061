@@ -5,6 +5,6 @@ namespace eBiblioteka.Api.Dtos;
 public class ForgotPasswordDto
 {
     [Required(ErrorMessage = "E-mail je obavezan.")]
-    [EmailAddress(ErrorMessage = "E-mail adresa nije ispravna.")]
+    [EmailAddress(ErrorMessage = "Unesite e-mail adresu u formatu ime@domena.ba.")]
     public string Email { get; set; } = string.Empty;
 }

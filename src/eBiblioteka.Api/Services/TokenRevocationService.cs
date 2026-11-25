@@ -16,24 +16,16 @@ public class TokenRevocationService : ITokenRevocationService
         _logger = logger;
     }
 
-    public async Task<bool> IsTokenValidAsync(string jti, int userId)
-    {
-        if (await _db.RevokedTokens.AnyAsync(t => t.Jti == jti))
-        {
-            return false;
-        }
+    public async Task<bool> IsTokenValidAsync(string jti) =>
+        !await _db.RevokedTokens.AnyAsync(t => t.Jti == jti);
 
-        // Blokiran član ne može koristiti ni token izdat prije blokiranja.
-        return !await _db.Users.AnyAsync(u => u.Id == userId && u.IsBlocked);
-    }
-
-    public async Task RevokeAsync(string accessToken)
+    public async Task RevokeAsync(string accessToken, int userId)
     {
         var token = new JwtSecurityTokenHandler().ReadJwtToken(accessToken);
 
         if (!await _db.RevokedTokens.AnyAsync(t => t.Jti == token.Id))
         {
-            _db.RevokedTokens.Add(new RevokedToken { Jti = token.Id, ExpiresAt = token.ValidTo });
+            _db.RevokedTokens.Add(new RevokedToken { Jti = token.Id, ExpiresAt = token.ValidTo, UserId = userId });
             await _db.SaveChangesAsync();
         }
 

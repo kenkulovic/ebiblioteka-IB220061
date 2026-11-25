@@ -31,7 +31,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
     final reason = await askReason(
       context,
       title: r.status == 'Pending' ? 'Odbijanje zahtjeva' : 'Otkazivanje rezervacije',
-      description: '"${r.bookTitle}" – ${r.userFullName}. Član će dobiti obavijest s razlogom.',
+      description: '"${r.bookTitle}" – ${r.userFullName}. Član će dobiti notifikaciju s razlogom.',
       hint: 'Razlog (obavezan)',
       minLength: 10,
       confirmText: r.status == 'Pending' ? 'Odbij' : 'Otkaži rezervaciju',

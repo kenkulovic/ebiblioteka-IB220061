@@ -67,11 +67,11 @@ The desktop app rejects accounts that are not administrators and the mobile app 
 
 Late fines are paid through the real PayPal sandbox (Orders v2: create order, approve, capture on the server, refund).
 
-1. In the mobile app log in as `maja`, then open **Moje knjige → Zakasnine → Plati putem PayPal-a**
+1. In the mobile app log in as `maja`, then open **Posudbe → Zakasnine → Plati putem PayPal-a**
 2. On the PayPal page log in with the sandbox buyer account:
    - **E-mail:** sb-ueyvw54113167@personal.example.com
    - **Password:** given in the submission on DLWMS
-3. A librarian can refund the payment in the desktop app: **Zakasnine → Uplate → Vrati uplatu** (a reason of at least 10 characters is required)
+3. A librarian can refund the payment in the desktop app: **Zakasnine → Vrati uplatu** (a reason of at least 10 characters is required)
 
 The amount is set by the server and charged in EUR at a fixed rate of 1 EUR = 1.95583 KM, because PayPal does not support the convertible mark.
 

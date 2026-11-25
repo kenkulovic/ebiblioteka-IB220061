@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../app_state.dart';
 import '../../ui/dialogs.dart';
+import '../../ui/validators.dart';
 
 /// Reset lozinke u dva koraka: 1) e-mail, 2) kod iz e-maila i nova lozinka.
 class ForgotPasswordScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _email = TextEditingController();
   final _code = TextEditingController();
   final _password = TextEditingController();
+  final _repeated = TextEditingController();
 
   bool _codeSent = false;
   bool _busy = false;
@@ -29,6 +31,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     _email.dispose();
     _code.dispose();
     _password.dispose();
+    _repeated.dispose();
     super.dispose();
   }
 
@@ -92,7 +95,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(labelText: 'E-mail', border: OutlineInputBorder()),
-                    validator: (v) => (v == null || !v.contains('@')) ? 'Unesite ispravnu e-mail adresu.' : null,
+                    validator: validateEmail,
                   ),
                   const SizedBox(height: 16),
                   FilledButton(
@@ -112,14 +115,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     controller: _code,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(labelText: 'Kod iz e-maila', border: OutlineInputBorder()),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Unesite kod.' : null,
+                    validator: validateResetCode,
                   ),
                   const SizedBox(height: 14),
                   TextFormField(
                     controller: _password,
                     obscureText: true,
                     decoration: const InputDecoration(labelText: 'Nova lozinka', border: OutlineInputBorder()),
-                    validator: (v) => (v == null || v.length < 4) ? 'Najmanje 4 znaka.' : null,
+                    validator: validateNewPassword,
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _repeated,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'Potvrda nove lozinke', border: OutlineInputBorder()),
+                    validator: (v) => validateRepeatedPassword(v, _password.text),
                   ),
                   const SizedBox(height: 16),
                   FilledButton(onPressed: _busy ? null : _reset, child: const Text('Promijeni lozinku')),

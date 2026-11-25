@@ -8,10 +8,10 @@ public class BookUpsertDto
     [StringLength(200, ErrorMessage = "Naslov može imati najviše 200 znakova.")]
     public string Title { get; set; } = string.Empty;
 
-    [Range(1000, 2100, ErrorMessage = "Godina izdanja nije ispravna.")]
+    [Range(1000, 2100, ErrorMessage = "Godina izdanja mora biti od 1000 do 2100.")]
     public int? PublishedYear { get; set; }
 
-    [Range(1, 20000, ErrorMessage = "Broj stranica nije ispravan.")]
+    [Range(1, 20000, ErrorMessage = "Broj stranica mora biti od 1 do 20000.")]
     public int? PageCount { get; set; }
 
     [StringLength(2000, ErrorMessage = "Opis može imati najviše 2000 znakova.")]

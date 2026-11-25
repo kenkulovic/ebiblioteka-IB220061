@@ -112,11 +112,17 @@ void main() {
     await waitFor(tester, find.text('Neplaćena'));
     expect(find.text('Plaćena'), findsWidgets);
     expect(find.text('Šalter'), findsOneWidget);
+    // Uplata na šalteru: povrat je onemogućen uz objašnjenje.
+    expect(tester.widget<TextButton>(find.widgetWithText(TextButton, 'Vrati uplatu')).onPressed, isNull);
+    expect(find.byTooltip('Uplata na šalteru ne vraća se kroz sistem; povrat je moguć samo za PayPal uplate.'),
+        findsOneWidget);
 
-    await openSection(tester, 'Vijesti');
+    await openSection(tester, 'Obavijesti');
     await waitFor(tester, find.text('Novo radno vrijeme'));
 
     await openSection(tester, 'Šifarnici');
+    await waitFor(tester, find.text('Roman'));
+    await tester.tap(find.text('Države'));
     await waitFor(tester, find.text('Bosna i Hercegovina'));
   });
 
@@ -151,7 +157,10 @@ void main() {
 
     // Država koju koriste gradovi i autori: brisanje je onemogućeno uz objašnjenje i broj zapisa.
     await openSection(tester, 'Šifarnici');
+    await settle(tester);
+    await tester.tap(find.text('Države'));
     await waitFor(tester, find.text('Bosna i Hercegovina'));
+    await settle(tester);
     expect(find.text('U upotrebi'), findsOneWidget);
     final blockedDelete = find.byWidgetPredicate((w) =>
         w is IconButton && w.onPressed == null && (w.tooltip ?? '').contains('ne može se obrisati'));
@@ -221,16 +230,28 @@ void main() {
     await tester.tap(find.text('Roman').last);
     await settle(tester);
 
-    // Bez autora: poruka.
+    // Bez autora i s pogrešnom godinom: poruke ispod kontrola navode šta se očekuje.
+    await tester.enterText(find.widgetWithText(TextFormField, 'Godina izdanja'), '999');
     await tester.tap(find.text('Sačuvaj'));
     await settle(tester);
-    expect(find.text('Knjiga mora imati barem jednog autora.'), findsOneWidget);
+    expect(find.text('Dodajte barem jednog autora.'), findsOneWidget);
+    expect(find.text('Unesite godinu od 1000 do 2100.'), findsOneWidget);
+    // enterText ne mijenja polje koje je izgubilo fokus, pa se godina briše preko kontrolera.
+    tester
+        .widget<EditableText>(find.descendant(
+            of: find.widgetWithText(TextFormField, 'Godina izdanja'), matching: find.byType(EditableText)))
+        .controller
+        .clear();
+    await settle(tester);
 
     // Autor se trazi na serveru.
     await tester.enterText(find.widgetWithText(TextField, 'Dodaj autora'), 'Orwe');
     await waitFor(tester, find.text('George Orwell'));
+    await tester.ensureVisible(find.text('George Orwell').last);
+    await settle(tester);
     await tester.tap(find.text('George Orwell').last);
     await settle(tester);
+    expect(find.widgetWithText(InputChip, 'George Orwell'), findsOneWidget);
 
     await tester.tap(find.text('Sačuvaj'));
     await waitGone(tester, find.text('Sačuvaj'));
@@ -298,9 +319,17 @@ void main() {
     // Detalji člana: lični podaci i historija po karticama.
     await openSection(tester, 'Članovi');
     await waitFor(tester, find.text('Tarik Delić'));
-    await tester.tap(find.widgetWithText(TextButton, 'Tarik Delić'));
+    await tester.enterText(find.byKey(const ValueKey('list-search')), 'Tarik');
+    await tester.tap(find.text('Traži'));
+    await waitFor(tester, find.text('Ukupno: 1'));
+    await tester.tap(find.widgetWithText(TextButton, 'Detalji'));
     await waitFor(tester, find.text('Član: Tarik Delić'));
     expect(find.textContaining('Broj karte:'), findsOneWidget);
+    // Historija ima pretragu po naslovu knjige.
+    await waitFor(tester, find.byKey(const ValueKey('history-search')));
+    await tester.enterText(find.byKey(const ValueKey('history-search')), 'nepostojeći naslov');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await waitFor(tester, find.text('Nema zapisa.'));
     await tester.tap(find.text('Rezervacije').last);
     await settle(tester);
     await tester.tap(find.text('Zakasnine').last);
@@ -353,9 +382,16 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Otkaži'));
     await settle(tester);
 
-    // Filter posudbi po roku povrata.
+    // Filter posudbi po roku povrata: datum se bira iz kalendara i može se ukloniti.
     await openSection(tester, 'Posudbe');
     await waitFor(tester, find.byKey(const ValueKey('loan-due-filter')));
+    await tester.tap(find.byKey(const ValueKey('loan-due-filter')));
+    await settle(tester);
+    expect(find.byType(DatePickerDialog), findsOneWidget);
+    await tester.tap(find.descendant(of: find.byType(DatePickerDialog), matching: find.byType(TextButton)).last);
+    await waitFor(tester, find.textContaining('Rok do '));
+    await tester.tap(find.byKey(const ValueKey('loan-due-clear')));
+    await waitFor(tester, find.text('Rok povrata do'));
 
     // "Preuzeto" vodi na formu izdavanja s odabranom rezervacijom i provjerom pravila.
     await openSection(tester, 'Rezervacije');
@@ -364,6 +400,7 @@ void main() {
     await waitFor(tester, find.byKey(const ValueKey('issue-check')));
     expect(find.text('Izdavanje knjige'), findsOneWidget);
     expect(find.textContaining('potvrđenu rezervaciju'), findsOneWidget);
+    expect(find.byKey(const ValueKey('issue-dates')), findsOneWidget);
     await tester.tap(find.widgetWithText(TextButton, 'Otkaži').last);
     await settle(tester);
   });

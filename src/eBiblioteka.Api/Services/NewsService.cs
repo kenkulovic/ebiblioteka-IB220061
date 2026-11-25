@@ -44,9 +44,9 @@ public class NewsService : INewsService
             .Where(n => n.Id == id)
             .Select(n => new NewsDto { Id = n.Id, Title = n.Title, Text = n.Text, PublishedAt = n.PublishedAt })
             .FirstOrDefaultAsync()
-        ?? throw new NotFoundException("Vijest nije pronađena.");
+        ?? throw new NotFoundException("Obavijest nije pronađena.");
 
-    public async Task<NewsDto> CreateAsync(string title, string text, Stream image, long imageLength)
+    public async Task<NewsDto> CreateAsync(int adminId, string title, string text, Stream image, long imageLength)
     {
         var data = await ReadImageAsync(image, imageLength);
 
@@ -55,12 +55,13 @@ public class NewsService : INewsService
             Title = title.Trim(),
             Text = text.Trim(),
             Image = data,
-            PublishedAt = DateTime.UtcNow
+            PublishedAt = DateTime.UtcNow,
+            CreatedByUserId = adminId
         };
         _db.News.Add(news);
         await _db.SaveChangesAsync();
 
-        _logger.LogInformation("Objavljena vijest {NewsId}: {Title}", news.Id, news.Title);
+        _logger.LogInformation("Objavljena obavijest {NewsId}: {Title}", news.Id, news.Title);
 
         return await GetByIdAsync(news.Id);
     }
@@ -68,7 +69,7 @@ public class NewsService : INewsService
     public async Task<NewsDto> UpdateAsync(int id, string title, string text, Stream? image, long imageLength)
     {
         var news = await _db.News.FirstOrDefaultAsync(n => n.Id == id)
-            ?? throw new NotFoundException("Vijest nije pronađena.");
+            ?? throw new NotFoundException("Obavijest nije pronađena.");
 
         news.Title = title.Trim();
         news.Text = text.Trim();
@@ -86,7 +87,7 @@ public class NewsService : INewsService
     public async Task DeleteAsync(int id)
     {
         var news = await _db.News.FirstOrDefaultAsync(n => n.Id == id)
-            ?? throw new NotFoundException("Vijest nije pronađena.");
+            ?? throw new NotFoundException("Obavijest nije pronađena.");
 
         _db.News.Remove(news);
         await _db.SaveChangesAsync();
@@ -98,7 +99,7 @@ public class NewsService : INewsService
             .Where(n => n.Id == id)
             .Select(n => n.Image)
             .FirstOrDefaultAsync()
-            ?? throw new NotFoundException("Vijest nije pronađena.");
+            ?? throw new NotFoundException("Obavijest nije pronađena.");
 
         return new ImageDto
         {

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:ebiblioteka_api/ebiblioteka_api.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Stanje prijave i broj nepročitanih obavijesti (osvježava se periodično, bez ručnog osvježavanja).
+/// Stanje prijave i broj nepročitanih notifikacija (osvježava se periodično, bez ručnog osvježavanja).
 class AppState extends ChangeNotifier {
   AppState(this.api) {
     // Ako server odbije token (istekao), korisnik se vraća na prijavu.

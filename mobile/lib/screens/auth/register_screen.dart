@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../../app_state.dart';
+import '../../ui/validators.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -42,8 +43,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _loadCities() async {
     try {
-      final page = await context.read<AppState>().api.cities(pageSize: 50);
-      if (mounted) setState(() => _cities = page.items);
+      final cities = await context.read<AppState>().api.registrationCities();
+      if (mounted) setState(() => _cities = cities);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
@@ -76,8 +77,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  String? _required(String? v, String message) => (v == null || v.trim().isEmpty) ? message : null;
-
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -93,13 +92,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               TextFormField(
                 controller: _firstName,
                 decoration: const InputDecoration(labelText: 'Ime', border: OutlineInputBorder()),
-                validator: (v) => _required(v, 'Unesite ime.'),
+                validator: (v) => validateName(v, 'ime'),
               ),
               const SizedBox(height: 14),
               TextFormField(
                 controller: _lastName,
                 decoration: const InputDecoration(labelText: 'Prezime', border: OutlineInputBorder()),
-                validator: (v) => _required(v, 'Unesite prezime.'),
+                validator: (v) => validateName(v, 'prezime'),
               ),
               const SizedBox(height: 14),
               DropdownButtonFormField<int>(
@@ -113,39 +112,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
               TextFormField(
                 controller: _userName,
                 decoration: const InputDecoration(labelText: 'Korisničko ime', border: OutlineInputBorder()),
-                validator: (v) => (v == null || v.trim().length < 3) ? 'Najmanje 3 znaka.' : null,
+                validator: validateUserName,
               ),
               const SizedBox(height: 14),
               TextFormField(
                 controller: _email,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(labelText: 'E-mail', border: OutlineInputBorder()),
-                validator: (v) => (v == null || !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim()))
-                    ? 'Unesite ispravnu e-mail adresu.'
-                    : null,
+                validator: validateEmail,
               ),
               const SizedBox(height: 14),
               TextFormField(
                 controller: _phone,
                 keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(labelText: 'Telefon (nije obavezno)', border: OutlineInputBorder()),
-                validator: (v) => (v == null || v.trim().isEmpty || RegExp(r'^\+?[0-9 /-]{6,20}$').hasMatch(v.trim()))
-                    ? null
-                    : 'Unesite ispravan broj telefona.',
+                validator: validatePhone,
               ),
               const SizedBox(height: 14),
               TextFormField(
                 controller: _password,
                 obscureText: true,
                 decoration: const InputDecoration(labelText: 'Lozinka', border: OutlineInputBorder()),
-                validator: (v) => (v == null || v.length < 4) ? 'Najmanje 4 znaka.' : null,
+                validator: validateNewPassword,
               ),
               const SizedBox(height: 14),
               TextFormField(
                 controller: _confirm,
                 obscureText: true,
                 decoration: const InputDecoration(labelText: 'Ponovite lozinku', border: OutlineInputBorder()),
-                validator: (v) => v != _password.text ? 'Lozinke se ne poklapaju.' : null,
+                validator: (v) => validateRepeatedPassword(v, _password.text),
               ),
               if (_error != null) ...[
                 const SizedBox(height: 12),

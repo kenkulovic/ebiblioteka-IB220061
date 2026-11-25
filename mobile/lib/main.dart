@@ -22,6 +22,8 @@ class EBibliotekaApp extends StatelessWidget {
     final theme = ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1F4E8C)),
+      // Poruke o grešci navode format i ograničenja, pa smiju prijeći u više redova.
+      inputDecorationTheme: const InputDecorationThemeData(errorMaxLines: 3),
     );
 
     if (apiBaseUrl.isEmpty) {

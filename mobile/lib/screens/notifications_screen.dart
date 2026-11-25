@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../ui/dialogs.dart';
 
-/// Obavijesti se same osvježavaju (svakih 15 sekundi), bez ručnog osvježavanja.
+/// Notifikacije se same osvježavaju (svakih 15 sekundi), bez ručnog osvježavanja.
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
@@ -51,8 +51,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _open(AppNotification n) async {
-    if (!n.isRead) {
-      await _api.markNotificationRead(n.id);
+    if (!n.isRead && await runAction(context, () => _api.markNotificationRead(n.id))) {
       if (!mounted) return;
       context.read<AppState>().refreshUnread();
       await _load();
@@ -87,7 +86,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Obavijesti'),
+        title: const Text('Notifikacije'),
         actions: [
           if (hasUnread) TextButton(onPressed: _markAll, child: const Text('Označi sve pročitanim')),
         ],
@@ -106,7 +105,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (_items!.isEmpty) {
       return RefreshIndicator(
         onRefresh: _load,
-        child: ListView(children: const [SizedBox(height: 120), Center(child: Text('Nemate obavijesti.'))]),
+        child: ListView(children: const [SizedBox(height: 120), Center(child: Text('Nemate notifikacija.'))]),
       );
     }
 
@@ -121,8 +120,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             leading: Icon(n.isRead ? Icons.notifications_none : Icons.notifications_active,
                 color: n.isRead ? null : Theme.of(context).colorScheme.primary),
             title: Text(n.title, style: TextStyle(fontWeight: n.isRead ? FontWeight.normal : FontWeight.bold)),
-            subtitle: Text(n.text, maxLines: 2, overflow: TextOverflow.ellipsis),
-            trailing: Text(formatDate(n.createdAt), style: Theme.of(context).textTheme.bodySmall),
+            subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(n.text, maxLines: 2, overflow: TextOverflow.ellipsis),
+              Text(formatDateTime(n.createdAt), style: Theme.of(context).textTheme.bodySmall),
+            ]),
             onTap: () => _open(n),
           );
         },

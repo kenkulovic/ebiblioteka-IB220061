@@ -1,6 +1,7 @@
 using eBiblioteka.Api.Constants;
 using eBiblioteka.Api.Dtos;
 using eBiblioteka.Api.Exceptions;
+using eBiblioteka.Api.Extensions;
 using eBiblioteka.Api.Helpers;
 using eBiblioteka.Api.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -41,12 +42,12 @@ public class NewsController : ControllerBase
     {
         if (form.Image == null)
         {
-            throw new BadRequestException("Slika vijesti je obavezna.");
+            throw new BadRequestException("Slika obavijesti je obavezna.");
         }
 
         EnsureImageContentType(form.Image);
         await using var stream = form.Image.OpenReadStream();
-        var created = await _service.CreateAsync(form.Title, form.Text, stream, form.Image.Length);
+        var created = await _service.CreateAsync(User.GetUserId(), form.Title, form.Text, stream, form.Image.Length);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 

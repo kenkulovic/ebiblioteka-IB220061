@@ -12,6 +12,7 @@ public static partial class DbSeeder
             return;
         }
 
+        var adminId = await db.Users.Where(u => u.UserName == "desktop").Select(u => u.Id).FirstAsync();
         var now = DateTime.UtcNow;
         var items = new[]
         {
@@ -39,7 +40,8 @@ public static partial class DbSeeder
                 Title = item.Title,
                 Text = item.Text,
                 Image = await File.ReadAllBytesAsync(path),
-                PublishedAt = now - item.Age
+                PublishedAt = now - item.Age,
+                CreatedByUserId = adminId
             });
         }
 

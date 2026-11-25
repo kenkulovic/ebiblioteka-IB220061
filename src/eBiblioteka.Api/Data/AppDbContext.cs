@@ -174,7 +174,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, IdentityRole<int>
         b.Entity<Notification>(e =>
         {
             e.Property(x => x.Title).IsRequired().HasMaxLength(100);
-            e.Property(x => x.Text).IsRequired().HasMaxLength(500);
+            e.Property(x => x.Text).IsRequired().HasMaxLength(1000);
             e.HasIndex(x => new { x.UserId, x.IsRead });
         });
 

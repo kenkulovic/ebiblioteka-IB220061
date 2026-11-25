@@ -109,6 +109,21 @@ class _PayPalScreenState extends State<PayPalScreen> {
 
   Future<void> _onCancelled() async {
     await _closePending();
+    if (!mounted) return;
+    showMessage(context, 'Plaćanje je otkazano u PayPal-u. Zakasnina je ostala neplaćena i možete pokušati ponovo.',
+        error: true);
+    Navigator.pop(context, false);
+  }
+
+  /// Prethodni neuspjeli pokušaj se zatvara prije novog, inače server prijavljuje da je plaćanje već pokrenuto.
+  Future<void> _retry() async {
+    setState(() => _stage = _Stage.starting);
+    await _closePending();
+    if (mounted) await _start();
+  }
+
+  Future<void> _leaveFailed() async {
+    await _closePending();
     if (mounted) Navigator.pop(context, false);
   }
 
@@ -139,7 +154,10 @@ class _PayPalScreenState extends State<PayPalScreen> {
       );
       if (!leave || !mounted) return;
       await _closePending();
+      if (!mounted) return;
+      showMessage(context, 'Plaćanje je prekinuto. Zakasnina je ostala neplaćena.', error: true);
     }
+    if (_stage == _Stage.failed) await _closePending();
 
     if (mounted) Navigator.pop(context, false);
   }
@@ -179,8 +197,8 @@ class _PayPalScreenState extends State<PayPalScreen> {
               const SizedBox(height: 12),
               Text(_error ?? 'Plaćanje nije uspjelo.', textAlign: TextAlign.center),
               const SizedBox(height: 16),
-              FilledButton(onPressed: _start, child: const Text('Pokušaj ponovo')),
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Odustani')),
+              FilledButton(onPressed: _retry, child: const Text('Pokušaj ponovo')),
+              TextButton(onPressed: _leaveFailed, child: const Text('Odustani')),
             ]),
           ),
         );

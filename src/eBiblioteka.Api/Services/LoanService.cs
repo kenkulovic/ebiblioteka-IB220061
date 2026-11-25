@@ -383,11 +383,10 @@ public class LoanService : ILoanService
             };
         }
 
-        if (query.DueWithinDays.HasValue)
+        if (query.DueTo.HasValue)
         {
-            // Aktivne posudbe kojima rok povrata ističe danas ili u narednih N dana.
-            var lastDay = today.AddDays(query.DueWithinDays.Value);
-            loans = loans.Where(l => l.Status == LoanStatus.Active && l.DueDate.Date >= today && l.DueDate.Date <= lastDay);
+            var dayAfter = query.DueTo.Value.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+            loans = loans.Where(l => l.DueDate < dayAfter);
         }
 
         if (!string.IsNullOrWhiteSpace(query.Search))

@@ -18,7 +18,24 @@ class LoansScreen extends StatefulWidget {
 class _LoansScreenState extends State<LoansScreen> {
   final _listKey = GlobalKey<PagedListViewState<Loan>>();
   String? _filter;
-  int? _dueWithinDays;
+  DateTime? _dueTo;
+
+  Future<void> _pickDueTo() async {
+    final today = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _dueTo ?? today,
+      firstDate: DateTime(2020),
+      lastDate: today.add(const Duration(days: 365)),
+      helpText: 'Rok povrata do',
+    );
+    if (picked != null) _setDueTo(picked);
+  }
+
+  void _setDueTo(DateTime? value) {
+    setState(() => _dueTo = value);
+    _listKey.currentState?.load(page: 1);
+  }
 
   Future<void> _issue() async {
     // Forma se ne otvara dok nisu ispunjeni preduslovi: moraju postojati i knjige i članovi.
@@ -119,30 +136,25 @@ class _LoansScreenState extends State<LoansScreen> {
             },
           ),
         ),
-        SizedBox(
-          width: 210,
-          child: DropdownButtonFormField<int?>(
-            key: const ValueKey('loan-due-filter'),
-            initialValue: _dueWithinDays,
-            decoration: const InputDecoration(labelText: 'Rok povrata', border: OutlineInputBorder(), isDense: true),
-            items: const [
-              DropdownMenuItem<int?>(value: null, child: Text('Svi')),
-              DropdownMenuItem<int?>(value: 0, child: Text('Ističe danas')),
-              DropdownMenuItem<int?>(value: 3, child: Text('Ističe u 3 dana')),
-              DropdownMenuItem<int?>(value: 7, child: Text('Ističe u 7 dana')),
-            ],
-            onChanged: (v) {
-              setState(() => _dueWithinDays = v);
-              _listKey.currentState?.load(page: 1);
-            },
-          ),
+        OutlinedButton.icon(
+          key: const ValueKey('loan-due-filter'),
+          onPressed: _pickDueTo,
+          icon: const Icon(Icons.event),
+          label: Text(_dueTo == null ? 'Rok povrata do' : 'Rok do ${formatDate(_dueTo)}'),
         ),
+        if (_dueTo != null)
+          IconButton(
+            key: const ValueKey('loan-due-clear'),
+            tooltip: 'Ukloni filter roka',
+            onPressed: () => _setDueTo(null),
+            icon: const Icon(Icons.clear),
+          ),
       ],
       trailing: [
         FilledButton.icon(onPressed: _issue, icon: const Icon(Icons.add), label: const Text('Izdaj knjigu')),
       ],
       columns: const ['', 'Knjiga', 'Član', 'Posuđeno', 'Rok povrata', 'Vraćeno', 'Status', ''],
-      fetch: (page, search) => api.loans(page: page, search: search, filter: _filter, dueWithinDays: _dueWithinDays),
+      fetch: (page, search) => api.loans(page: page, search: search, filter: _filter, dueTo: _dueTo),
       rowBuilder: (loan, reload) => DataRow(cells: [
         DataCell(ApiImage(url: loan.bookHasCover ? api.bookCoverUrl(loan.bookId) : null, width: 30, height: 42)),
         DataCell(SizedBox(width: 200, child: Text(loan.bookTitle, overflow: TextOverflow.ellipsis))),
@@ -173,6 +185,8 @@ class IssueLoanDialog extends StatefulWidget {
 }
 
 class _IssueLoanDialogState extends State<IssueLoanDialog> with SingleTickerProviderStateMixin {
+  static const _loanDays = 14;
+
   late final _tabs = TabController(length: 2, vsync: this);
 
   List<Reservation> _confirmed = [];
@@ -299,6 +313,14 @@ class _IssueLoanDialogState extends State<IssueLoanDialog> with SingleTickerProv
               children: [_fromReservation(), _direct()],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Text(
+              'Datum izdavanja: ${formatDate(DateTime.now())}  ·  '
+              'Rok povrata: ${formatDate(DateTime.now().add(const Duration(days: _loanDays)))} ($_loanDays dana)',
+              key: const ValueKey('issue-dates'),
+            ),
+          ),
           if (_error != null)
             Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
         ]),
@@ -329,6 +351,7 @@ class _IssueLoanDialogState extends State<IssueLoanDialog> with SingleTickerProv
         for (final r in _confirmed)
           RadioListTile<int>(
             value: r.id,
+            secondary: ApiImage(url: r.bookHasCover ? _api.bookCoverUrl(r.bookId) : null, width: 30, height: 42),
             title: Text(r.bookTitle),
             subtitle: Text('${r.userFullName} (${r.membershipNumber}) · preuzimanje do ${formatDate(r.pickupDeadline)}'),
           ),
@@ -392,7 +415,7 @@ class _IssueLoanDialogState extends State<IssueLoanDialog> with SingleTickerProv
         const SizedBox(height: 16),
         if (_book != null)
           ListTile(
-            leading: const Icon(Icons.menu_book),
+            leading: ApiImage(url: _book!.hasCover ? _api.bookCoverUrl(_book!.id) : null, width: 30, height: 42),
             title: Text(_book!.title),
             subtitle: Text('Dostupno: ${_book!.availableCopies} od ${_book!.totalCopies}'),
             trailing: IconButton(
@@ -416,8 +439,6 @@ class _IssueLoanDialogState extends State<IssueLoanDialog> with SingleTickerProv
           ),
         const SizedBox(height: 12),
         if (_check != null) _checkPanel(_check!),
-        const SizedBox(height: 8),
-        const Text('Rok povrata je 14 dana od danas.'),
       ]),
     );
   }

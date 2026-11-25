@@ -23,7 +23,7 @@ class MyLibraryScreen extends StatelessWidget {
       initialIndex: initialTab,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Moje knjige'),
+          title: const Text('Moje posudbe'),
           bottom: const TabBar(tabs: [Tab(text: 'Posudbe'), Tab(text: 'Rezervacije'), Tab(text: 'Zakasnine')]),
         ),
         body: const TabBarView(children: [_LoansTab(), _ReservationsTab(), _FinesTab()]),
@@ -64,7 +64,8 @@ class _LoansTab extends StatelessWidget {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(loan.bookTitle, style: Theme.of(context).textTheme.titleSmall),
                   Text(
-                    loan.isActive ? 'Rok povrata: ${formatDate(loan.dueDate)}' : 'Vraćeno: ${formatDate(loan.returnDate)}',
+                    'Rok povrata: ${formatDate(loan.dueDate)}'
+                    '${loan.isActive ? '' : '\nVraćeno: ${formatDate(loan.returnDate)}'}',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 4),
@@ -202,6 +203,13 @@ class _FinesTab extends StatelessWidget {
                   const Text('Plaćanje je započeto, ali nije završeno.'),
                   TextButton(
                     onPressed: () async {
+                      final yes = await confirm(
+                        context,
+                        title: 'Otkazivanje plaćanja',
+                        message: 'Otkazati započeto plaćanje ove zakasnine?',
+                        confirmText: 'Otkaži plaćanje',
+                      );
+                      if (!yes || !context.mounted) return;
                       if (await runAction(context, () => api.cancelPayment(fine.pendingPaymentId!),
                           success: 'Započeto plaćanje je otkazano.')) {
                         await reload();

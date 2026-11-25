@@ -2,7 +2,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0.203 AS build
 WORKDIR /src
 
-# Prvo samo .csproj fajlovi, da se restore keširа dok se paketi ne promijene.
+# Prvo samo .csproj fajlovi, da se restore kešira dok se paketi ne promijene.
 COPY eBiblioteka.Shared/eBiblioteka.Shared.csproj eBiblioteka.Shared/
 COPY eBiblioteka.Api/eBiblioteka.Api.csproj eBiblioteka.Api/
 RUN dotnet restore eBiblioteka.Api/eBiblioteka.Api.csproj

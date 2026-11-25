@@ -37,7 +37,7 @@ class _HomeShellState extends State<HomeShell> {
     _Section('Rezervacije', Icons.bookmark, (_) => const ReservationsScreen()),
     _Section('Zakasnine', Icons.payments, (_) => const FinesScreen()),
     _Section('Izvještaji', Icons.assessment, (_) => const ReportsScreen()),
-    _Section('Vijesti', Icons.newspaper, (_) => const NewsScreen()),
+    _Section('Obavijesti', Icons.newspaper, (_) => const NewsScreen()),
     _Section('Šifarnici', Icons.category, (_) => const LookupsScreen()),
   ];
 

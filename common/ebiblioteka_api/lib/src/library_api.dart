@@ -74,6 +74,10 @@ class LibraryApi {
   Future<void> resetPassword(String email, String code, String newPassword) =>
       client.post('/api/auth/reset-password', body: {'email': email, 'code': code, 'newPassword': newPassword});
 
+  /// Gradovi za padajuću listu na registraciji (prije prijave).
+  Future<List<City>> registrationCities() async =>
+      (await _page('/api/auth/register/cities', City.fromJson, pageSize: 50)).items;
+
   // ------------------------------------------------------------- Sifarnici
 
   /// [kind] je "countries" ili "categories".
@@ -292,12 +296,12 @@ class LibraryApi {
           body: {'reservationId': reservationId, 'userId': userId, 'bookId': bookId}) as Map<String, dynamic>);
 
   Future<PagedResult<Loan>> loans(
-          {int page = 1, int pageSize = 10, String? search, String? filter, int? userId, int? dueWithinDays}) =>
+          {int page = 1, int pageSize = 10, String? search, String? filter, int? userId, DateTime? dueTo}) =>
       _page('/api/loans', Loan.fromJson,
           page: page,
           pageSize: pageSize,
           search: search,
-          extra: {'filter': filter, 'userId': userId, 'dueWithinDays': dueWithinDays});
+          extra: {'filter': filter, 'userId': userId, 'dueTo': dueTo == null ? null : _isoDate(dueTo)});
 
   Future<IssueCheck> issueCheck(int userId, int bookId) async => IssueCheck.fromJson(
       await client.get('/api/loans/issue-check', query: {'userId': userId, 'bookId': bookId}) as Map<String, dynamic>);
@@ -326,10 +330,9 @@ class LibraryApi {
   Future<Fine> payFineAtCounter(int id) async =>
       Fine.fromJson(await client.post('/api/fines/$id/pay-at-counter') as Map<String, dynamic>);
 
-  Future<List<Payment>> finePayments(int fineId) async {
-    final json = await client.get('/api/fines/$fineId/payments') as List<dynamic>;
-    return json.map((e) => Payment.fromJson(e as Map<String, dynamic>)).toList();
-  }
+  /// Uplate jedne zakasnine, najnovija prva.
+  Future<List<Payment>> finePayments(int fineId) async =>
+      (await _page('/api/fines/$fineId/payments', Payment.fromJson, pageSize: 50)).items;
 
   Future<PaymentInit> startPayPalPayment(int fineId) async =>
       PaymentInit.fromJson(await client.post('/api/fines/$fineId/payments') as Map<String, dynamic>);

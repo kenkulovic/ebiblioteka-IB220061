@@ -1,4 +1,5 @@
 using eBiblioteka.Api.Dtos;
+using eBiblioteka.Api.Extensions;
 using eBiblioteka.Api.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -11,10 +12,12 @@ namespace eBiblioteka.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly ICityService _cityService;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, ICityService cityService)
     {
         _authService = authService;
+        _cityService = cityService;
     }
 
     [AllowAnonymous]
@@ -33,7 +36,7 @@ public class AuthController : ControllerBase
         var token = await HttpContext.GetTokenAsync("access_token");
         if (token != null)
         {
-            await _authService.LogoutAsync(token);
+            await _authService.LogoutAsync(token, User.GetUserId());
         }
 
         return NoContent();
@@ -54,6 +57,12 @@ public class AuthController : ControllerBase
         await _authService.ResetPasswordAsync(dto);
         return NoContent();
     }
+
+    // Dio registracije: gradovi za padajuću listu na ekranu registracije, prije prijave.
+    [AllowAnonymous]
+    [HttpGet("register/cities")]
+    public async Task<ActionResult<PagedResultDto<CityDto>>> RegisterCities([FromQuery] PagedQueryDto query)
+        => Ok(await _cityService.GetAsync(query, null));
 
     [AllowAnonymous]
     [HttpPost("register")]

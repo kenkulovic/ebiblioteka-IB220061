@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../ui/api_image.dart';
 import '../ui/dialogs.dart';
+import '../ui/validators.dart';
 
 /// Profil člana: podaci, profilna slika, promjena lozinke i odjava.
 class ProfileScreen extends StatefulWidget {
@@ -24,6 +25,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _phone = TextEditingController();
   final _currentPassword = TextEditingController();
   final _newPassword = TextEditingController();
+  final _repeatedPassword = TextEditingController();
 
   Member? _me;
   List<City> _cities = [];
@@ -42,7 +44,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void dispose() {
-    for (final c in [_firstName, _lastName, _email, _phone, _currentPassword, _newPassword]) {
+    for (final c in [_firstName, _lastName, _email, _phone, _currentPassword, _newPassword, _repeatedPassword]) {
       c.dispose();
     }
     super.dispose();
@@ -100,6 +102,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (ok) {
       _currentPassword.clear();
       _newPassword.clear();
+      _repeatedPassword.clear();
     }
   }
 
@@ -114,6 +117,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _removeImage() async {
+    final yes = await confirm(
+      context,
+      title: 'Uklanjanje slike',
+      message: 'Ukloniti profilnu sliku?',
+      confirmText: 'Ukloni sliku',
+    );
+    if (!yes || !mounted) return;
+
     final ok = await runAction(context, _api.removeMyImage, success: 'Slika je uklonjena.');
     if (ok) await _afterImageChange();
   }
@@ -162,31 +173,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   TextFormField(
                     controller: _firstName,
                     decoration: const InputDecoration(labelText: 'Ime', border: OutlineInputBorder()),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Unesite ime.' : null,
+                    validator: (v) => validateName(v, 'ime'),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _lastName,
                     decoration: const InputDecoration(labelText: 'Prezime', border: OutlineInputBorder()),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Unesite prezime.' : null,
+                    validator: (v) => validateName(v, 'prezime'),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(labelText: 'E-mail', border: OutlineInputBorder()),
-                    validator: (v) => (v == null || !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v.trim()))
-                        ? 'Unesite ispravnu e-mail adresu.'
-                        : null,
+                    validator: validateEmail,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _phone,
                     keyboardType: TextInputType.phone,
                     decoration: const InputDecoration(labelText: 'Telefon (nije obavezno)', border: OutlineInputBorder()),
-                    validator: (v) => (v == null || v.trim().isEmpty || RegExp(r'^\+?[0-9 /-]{6,20}$').hasMatch(v.trim()))
-                        ? null
-                        : 'Unesite ispravan broj telefona.',
+                    validator: validatePhone,
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int>(
@@ -222,7 +229,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         controller: _newPassword,
                         obscureText: true,
                         decoration: const InputDecoration(labelText: 'Nova lozinka', border: OutlineInputBorder()),
-                        validator: (v) => (v == null || v.length < 4) ? 'Najmanje 4 znaka.' : null,
+                        validator: validateNewPassword,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _repeatedPassword,
+                        obscureText: true,
+                        decoration:
+                            const InputDecoration(labelText: 'Potvrda nove lozinke', border: OutlineInputBorder()),
+                        validator: (v) => validateRepeatedPassword(v, _newPassword.text),
                       ),
                       const SizedBox(height: 12),
                       SizedBox(

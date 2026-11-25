@@ -5,7 +5,6 @@ using eBiblioteka.Api.Middleware;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 using System.Text;
 using eBiblioteka.Api.Services;
 using eBiblioteka.Api.Services.Email;
@@ -93,17 +92,16 @@ builder.Services
             ClockSkew = TimeSpan.Zero
         };
 
-        // Pored potpisa i roka, provjerava se da token nije poništen odjavom i da račun nije blokiran.
+        // Pored potpisa i roka, provjerava se da token nije poništen odjavom.
         options.Events = new JwtBearerEvents
         {
             OnTokenValidated = async context =>
             {
                 var revocation = context.HttpContext.RequestServices.GetRequiredService<ITokenRevocationService>();
-                var userId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
 
-                if (!int.TryParse(userId, out var id) || !await revocation.IsTokenValidAsync(context.SecurityToken.Id, id))
+                if (!await revocation.IsTokenValidAsync(context.SecurityToken.Id))
                 {
-                    context.Fail("Token je poništen ili je račun blokiran.");
+                    context.Fail("Token je poništen odjavom.");
                 }
             }
         };

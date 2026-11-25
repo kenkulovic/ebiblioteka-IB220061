@@ -9,7 +9,7 @@ public class RegisterDto
     public string UserName { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "E-mail je obavezan.")]
-    [EmailAddress(ErrorMessage = "E-mail adresa nije ispravna.")]
+    [EmailAddress(ErrorMessage = "Unesite e-mail adresu u formatu ime@domena.ba.")]
     [StringLength(100, ErrorMessage = "E-mail može imati najviše 100 znakova.")]
     public string Email { get; set; } = string.Empty;
 
@@ -28,6 +28,6 @@ public class RegisterDto
     [Range(1, int.MaxValue, ErrorMessage = "Grad je obavezan.")]
     public int CityId { get; set; }
 
-    [RegularExpression(@"^\+?[0-9 /-]{6,20}$", ErrorMessage = "Broj telefona nije ispravan.")]
+    [RegularExpression(@"^\+?[0-9 /-]{6,20}$", ErrorMessage = "Unesite telefon od 6 do 20 znakova (cifre, razmak, / ili -, može početi sa +), npr. +387 61 123 456.")]
     public string? PhoneNumber { get; set; }
 }

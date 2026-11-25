@@ -33,6 +33,23 @@ class _FinesScreenState extends State<FinesScreen> {
     if (done) _listKey.currentState?.reload();
   }
 
+  Future<void> _refundFromRow(Fine fine) async {
+    List<Payment> payments;
+    try {
+      payments = await _api.finePayments(fine.id);
+    } on ApiException catch (e) {
+      if (mounted) showMessage(context, e.message, error: true);
+      return;
+    }
+    final payment = payments.where((p) => p.canRefund).firstOrNull;
+    if (!mounted) return;
+    if (payment == null) {
+      showMessage(context, 'Za ovu zakasninu nema PayPal uplate koja se može vratiti.', error: true);
+      return;
+    }
+    if (await _refundPayment(context, _api, fine, payment)) _listKey.currentState?.reload();
+  }
+
   Future<void> _payments(Fine fine) async {
     await showDialog<void>(context: context, builder: (_) => _PaymentsDialog(fine: fine));
     _listKey.currentState?.reload();
@@ -83,11 +100,51 @@ class _FinesScreenState extends State<FinesScreen> {
           if (f.isUnpaid && !f.hasPendingPayment)
             TextButton(onPressed: () => _payAtCounter(f), child: const Text('Označi plaćeno')),
           if (f.isUnpaid && f.hasPendingPayment) const Text('Online plaćanje u toku'),
+          if (f.isPaid && f.paymentMethod == 'PayPal')
+            TextButton(
+              key: ValueKey('fine-refund-${f.id}'),
+              onPressed: () => _refundFromRow(f),
+              child: const Text('Vrati uplatu'),
+            ),
+          if (f.isPaid && f.paymentMethod == 'Counter')
+            const Tooltip(
+              message: _counterRefundReason,
+              child: TextButton(onPressed: null, child: Text('Vrati uplatu')),
+            ),
           TextButton(onPressed: () => _payments(f), child: const Text('Uplate')),
         ])),
       ]),
     );
   }
+}
+
+const _counterRefundReason = 'Uplata na šalteru ne vraća se kroz sistem; povrat je moguć samo za PayPal uplate.';
+
+/// Povrat PayPal uplate: panel sa stvarno naplaćenim iznosom i razlogom, zatim potvrda. Vraća true ako je uspio.
+Future<bool> _refundPayment(BuildContext context, LibraryApi api, Fine fine, Payment payment) async {
+  final amount = '${formatEur(payment.amountEur ?? 0)} (${formatKm(payment.amountKm)})';
+  final reason = await askReason(
+    context,
+    title: 'Povrat uplate',
+    description: 'Zakasnina: ${fine.bookTitle} – ${fine.userFullName} (${fine.daysLate} d.), '
+        'plaćeno ${formatDate(fine.paidAt)} putem PayPal-a.\n\n'
+        'Iznos za povrat (stvarno naplaćen): $amount. Zakasnina postaje stornirana, '
+        'a član će dobiti notifikaciju i e-mail.',
+    hint: 'Razlog povrata (obavezan)',
+    minLength: 10,
+    confirmText: 'Vrati uplatu',
+  );
+  if (reason == null || !context.mounted) return false;
+
+  final yes = await confirm(
+    context,
+    title: 'Potvrda povrata',
+    message: 'Vratiti $amount članu ${fine.userFullName}? Povrat se ne može poništiti.',
+    confirmText: 'Potvrdi povrat',
+  );
+  if (!yes || !context.mounted) return false;
+
+  return runAction(context, () => api.refundPayment(payment.id, reason), success: 'Uplata je vraćena.');
 }
 
 /// Uplate jedne zakasnine; PayPal uplata se može vratiti uz razlog.
@@ -122,19 +179,7 @@ class _PaymentsDialogState extends State<_PaymentsDialog> {
   }
 
   Future<void> _refund(Payment payment) async {
-    final reason = await askReason(
-      context,
-      title: 'Povrat uplate',
-      description: 'Vraća se iznos koji je PayPal stvarno naplatio: ${formatEur(payment.amountEur ?? 0)} '
-          '(${formatKm(payment.amountKm)}). Zakasnina postaje stornirana, a član će dobiti obavijest i e-mail.',
-      hint: 'Razlog povrata (obavezan)',
-      minLength: 10,
-      confirmText: 'Vrati uplatu',
-    );
-    if (reason == null || !mounted) return;
-
-    final ok = await runAction(context, () => _api.refundPayment(payment.id, reason), success: 'Uplata je vraćena.');
-    if (ok) await _load();
+    if (await _refundPayment(context, _api, widget.fine, payment)) await _load();
   }
 
   @override
@@ -161,7 +206,7 @@ class _PaymentsDialogState extends State<_PaymentsDialog> {
                                   ? FilledButton.tonal(onPressed: () => _refund(p), child: const Text('Vrati uplatu'))
                                   : (p.method == 'Counter' && p.status == 'Completed'
                                       ? const Tooltip(
-                                          message: 'Uplata na šalteru ne vraća se kroz sistem; povrat je moguć samo za PayPal uplate.',
+                                          message: _counterRefundReason,
                                           child: FilledButton.tonal(onPressed: null, child: Text('Vrati uplatu')),
                                         )
                                       : null),

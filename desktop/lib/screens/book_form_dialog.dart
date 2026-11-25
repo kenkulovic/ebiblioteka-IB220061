@@ -44,6 +44,7 @@ class _BookFormDialogState extends State<BookFormDialog> {
   bool _loading = true;
   bool _saving = false;
   String? _error;
+  String? _authorsError;
 
   LibraryApi get _api => context.read<AppState>().api;
 
@@ -96,7 +97,10 @@ class _BookFormDialogState extends State<BookFormDialog> {
 
   void _addAuthor(Author author) {
     if (_authors.every((x) => x.id != author.id)) {
-      setState(() => _authors.add(BookAuthor.fromJson({'id': author.id, 'fullName': author.fullName})));
+      setState(() {
+        _authors.add(BookAuthor.fromJson({'id': author.id, 'fullName': author.fullName}));
+        _authorsError = null;
+      });
     }
   }
 
@@ -139,12 +143,9 @@ class _BookFormDialogState extends State<BookFormDialog> {
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    if (_authors.isEmpty) {
-      setState(() => _error = 'Knjiga mora imati barem jednog autora.');
-      return;
-    }
+    final valid = _formKey.currentState!.validate();
+    setState(() => _authorsError = _authors.isEmpty ? 'Dodajte barem jednog autora.' : null);
+    if (!valid || _authors.isEmpty) return;
 
     setState(() {
       _saving = true;
@@ -243,29 +244,29 @@ class _BookFormDialogState extends State<BookFormDialog> {
                       Expanded(
                         child: TextFormField(
                           controller: _year,
-                          decoration: const InputDecoration(labelText: 'Godina izdanja', border: OutlineInputBorder()),
+                          decoration: const InputDecoration(labelText: 'Godina izdanja', border: OutlineInputBorder(), errorMaxLines: 3),
                           keyboardType: TextInputType.number,
-                          validator: (v) => _optionalRange(v, 1000, 2100, 'Godina nije ispravna.'),
+                          validator: (v) => _optionalRange(v, 1000, 2100, 'Unesite godinu od 1000 do 2100.'),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: TextFormField(
                           controller: _pages,
-                          decoration: const InputDecoration(labelText: 'Broj stranica', border: OutlineInputBorder()),
+                          decoration: const InputDecoration(labelText: 'Broj stranica', border: OutlineInputBorder(), errorMaxLines: 3),
                           keyboardType: TextInputType.number,
-                          validator: (v) => _optionalRange(v, 1, 20000, 'Broj stranica nije ispravan.'),
+                          validator: (v) => _optionalRange(v, 1, 20000, 'Unesite broj stranica od 1 do 20000.'),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: TextFormField(
                           controller: _copies,
-                          decoration: const InputDecoration(labelText: 'Primjeraka *', border: OutlineInputBorder()),
+                          decoration: const InputDecoration(labelText: 'Primjeraka *', border: OutlineInputBorder(), errorMaxLines: 3),
                           keyboardType: TextInputType.number,
                           validator: (v) {
                             final n = int.tryParse(v?.trim() ?? '');
-                            return (n == null || n < 1 || n > 1000) ? 'Od 1 do 1000.' : null;
+                            return (n == null || n < 1 || n > 1000) ? 'Unesite broj primjeraka od 1 do 1000.' : null;
                           },
                         ),
                       ),
@@ -339,6 +340,11 @@ class _BookFormDialogState extends State<BookFormDialog> {
                 icon: const Icon(Icons.add_circle_outline),
               ),
             ]),
+            if (_authorsError != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(_authorsError!, style: TextStyle(color: scheme.error)),
+              ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _description,

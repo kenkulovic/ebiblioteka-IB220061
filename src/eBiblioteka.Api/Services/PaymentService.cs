@@ -4,6 +4,7 @@ using eBiblioteka.Api.Data.Entities;
 using eBiblioteka.Api.Data.Enums;
 using eBiblioteka.Api.Dtos;
 using eBiblioteka.Api.Exceptions;
+using eBiblioteka.Api.Extensions;
 using eBiblioteka.Api.Services.PayPal;
 using Microsoft.EntityFrameworkCore;
 
@@ -48,6 +49,10 @@ public class PaymentService : IPaymentService
             throw new ConflictException("Zakasnina je stornirana i ne naplaćuje se.");
         }
 
+        // Zatvaranje napuštene i upis nove uplate su jedna transakcija. Poziv PayPal-a je izvan nje,
+        // pa se identifikator narudžbe (ili neuspjeh) snima naknadno.
+        await using var transaction = await _db.Database.BeginTransactionAsync();
+
         await EnsureNoOpenPaymentAsync(fineId);
 
         var amountEur = Math.Round(fine.Amount / LibraryRules.KmPerEur, 2, MidpointRounding.AwayFromZero);
@@ -64,6 +69,7 @@ public class PaymentService : IPaymentService
         };
         _db.Payments.Add(payment);
         await _db.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         try
         {
@@ -298,7 +304,7 @@ public class PaymentService : IPaymentService
         return dto;
     }
 
-    public async Task<List<PaymentDto>> GetForFineAsync(int fineId)
+    public async Task<PagedResultDto<PaymentDto>> GetForFineAsync(int fineId, PagedQueryDto query)
     {
         if (!await _db.Fines.AnyAsync(f => f.Id == fineId))
         {
@@ -307,7 +313,7 @@ public class PaymentService : IPaymentService
 
         return await Project(_db.Payments.AsNoTracking().Where(p => p.FineId == fineId)
                 .OrderByDescending(p => p.CreatedAt).ThenByDescending(p => p.Id))
-            .ToListAsync();
+            .ToPagedAsync(query);
     }
 
     private async Task EnsureNoOpenPaymentAsync(int fineId)

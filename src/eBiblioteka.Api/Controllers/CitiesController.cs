@@ -18,9 +18,7 @@ public class CitiesController : ControllerBase
         _service = service;
     }
 
-    // Lista gradova je javna: potrebna je na ekranu registracije, prije prijave.
     [HttpGet]
-    [AllowAnonymous]
     public async Task<ActionResult<PagedResultDto<CityDto>>> Get([FromQuery] PagedQueryDto query, [FromQuery] int? countryId)
         => Ok(await _service.GetAsync(query, countryId));
 
