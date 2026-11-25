@@ -52,7 +52,12 @@ Copy-Item "$root\mobile\build\app\outputs\flutter-apk\app-release.apk" "$staging
 
 Write-Host '3/4 ZIP za GitHub Release'
 $zip = "$out\fit-build-$(Get-Date -Format 'yyyy-MM-dd').zip"
-Compress-Archive -Path "$staging\*" -DestinationPath $zip -CompressionLevel Optimal
+# 7-Zip upisuje putanje s kosom crtom (standardni ZIP); Compress-Archive u PowerShell 5.1 upisuje obrnutu kosu crtu.
+Push-Location $staging
+& $sevenZip a -tzip -mx=9 $zip desktop mobile | Out-Null
+$zipExit = $LASTEXITCODE
+Pop-Location
+if ($zipExit -ne 0) { throw 'Izrada ZIP-a nije uspjela.' }
 Remove-Item $staging -Recurse -Force
 
 Write-Host '4/4 .env-tajne.zip'

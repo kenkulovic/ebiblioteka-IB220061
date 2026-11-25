@@ -49,19 +49,13 @@ Course project for **Razvoj softvera II**, FIT Mostar, 2025/26. Author: Kenan Ku
 
 ## **Login Credentials**
 
-The password for every account is **test**.
-
-### **Desktop Application (Administrator)**
-
-- **Username:** desktop
-- **Password:** test
-
-### **Mobile Application (Members)**
-
-- **Username:** mobile (clean account: reservations, loans, ratings, recommendations)
-- **Username:** maja (has an unpaid late fine, use it to test the PayPal payment)
-- **Username:** adnan (has an overdue loan)
-- **Username:** amra (has a confirmed reservation and a notification)
+| Context | Username | Password | Notes |
+|---|---|---|---|
+| Desktop version | desktop | test | Administrator (librarian) |
+| Mobile version | mobile | test | Member, clean account: reservations, loans, ratings, recommendations |
+| Mobile version | maja | test | Member with an unpaid late fine, use it to test the PayPal payment |
+| Mobile version | adnan | test | Member with an overdue loan |
+| Mobile version | amra | test | Member with a confirmed reservation and a notification |
 
 The desktop app rejects accounts that are not administrators and the mobile app rejects accounts that are not members. Access is also restricted on the server with role-based authorization. A new member can register in the mobile app.
 
