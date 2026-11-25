@@ -30,8 +30,11 @@ public class CityService : ICityService
             cities = cities.Where(c => c.Name.Contains(query.Search));
         }
 
-        return await cities
-            .OrderBy(c => c.Name)
+        var ordered = query.NewestFirst
+            ? cities.OrderByDescending(c => c.Id)
+            : cities.OrderBy(c => c.Name);
+
+        return await ordered
             .Select(c => new CityDto
             {
                 Id = c.Id,

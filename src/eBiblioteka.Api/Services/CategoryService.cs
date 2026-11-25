@@ -25,8 +25,11 @@ public class CategoryService : ICategoryService
             categories = categories.Where(c => c.Name.Contains(query.Search));
         }
 
-        return await categories
-            .OrderBy(c => c.Name)
+        var ordered = query.NewestFirst
+            ? categories.OrderByDescending(c => c.Id)
+            : categories.OrderBy(c => c.Name);
+
+        return await ordered
             .Select(c => new LookupDto { Id = c.Id, Name = c.Name, UsageCount = _db.Books.Count(b => b.CategoryId == c.Id) })
             .ToPagedAsync(query);
     }

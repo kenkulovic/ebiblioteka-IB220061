@@ -28,7 +28,7 @@ class LookupsScreen extends StatelessWidget {
           child: TabBarView(children: [
             _LookupTab<Lookup>(
               singular: 'državu',
-              fetch: (page, search) => api.lookups('countries', page: page, search: search),
+              fetch: (page, search) => api.lookups('countries', page: page, search: search, newestFirst: true),
               idOf: (c) => c.id,
               nameOf: (c) => c.name,
               usageOf: (c) => c.usageCount,
@@ -40,7 +40,7 @@ class LookupsScreen extends StatelessWidget {
               singular: 'grad',
               referenceLabel: 'Država',
               loadReferences: countries,
-              fetch: (page, search) => api.cities(page: page, search: search),
+              fetch: (page, search) => api.cities(page: page, search: search, newestFirst: true),
               idOf: (c) => c.id,
               nameOf: (c) => c.name,
               usageOf: (c) => c.usageCount,
@@ -52,7 +52,7 @@ class LookupsScreen extends StatelessWidget {
             ),
             _LookupTab<Lookup>(
               singular: 'kategoriju',
-              fetch: (page, search) => api.lookups('categories', page: page, search: search),
+              fetch: (page, search) => api.lookups('categories', page: page, search: search, newestFirst: true),
               idOf: (c) => c.id,
               nameOf: (c) => c.name,
               usageOf: (c) => c.usageCount,
@@ -65,7 +65,7 @@ class LookupsScreen extends StatelessWidget {
               maxLength: 150,
               referenceLabel: 'Grad',
               loadReferences: cities,
-              fetch: (page, search) => api.publishers(page: page, search: search),
+              fetch: (page, search) => api.publishers(page: page, search: search, newestFirst: true),
               idOf: (p) => p.id,
               nameOf: (p) => p.name,
               usageOf: (p) => p.usageCount,
@@ -141,7 +141,7 @@ class _LookupTabState<T> extends State<_LookupTab<T>> with AutomaticKeepAliveCli
             item == null ? widget.create(name, ref) : widget.update(widget.idOf(item), name, ref),
       ),
     );
-    if (saved == true) _listKey.currentState?.reload();
+    if (saved == true) _listKey.currentState?.load(page: item == null ? 1 : null);
   }
 
   Future<void> _delete(T item) async {
@@ -271,7 +271,10 @@ class _LookupFormDialogState extends State<_LookupFormDialog> {
 
     try {
       await widget.save(_name.text.trim(), _referenceId);
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        showMessage(context, 'Stavka "${_name.text.trim()}" je sačuvana.');
+        Navigator.pop(context, true);
+      }
     } on ApiException catch (e) {
       if (mounted) {
         setState(() {

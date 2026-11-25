@@ -25,8 +25,11 @@ public class PublisherService : IPublisherService
             publishers = publishers.Where(p => p.Name.Contains(query.Search));
         }
 
-        return await publishers
-            .OrderBy(p => p.Name)
+        var ordered = query.NewestFirst
+            ? publishers.OrderByDescending(p => p.Id)
+            : publishers.OrderBy(p => p.Name);
+
+        return await ordered
             .Select(p => new PublisherDto
             {
                 Id = p.Id,

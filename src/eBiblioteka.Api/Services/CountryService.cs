@@ -25,8 +25,11 @@ public class CountryService : ICountryService
             countries = countries.Where(c => c.Name.Contains(query.Search));
         }
 
-        return await countries
-            .OrderBy(c => c.Name)
+        var ordered = query.NewestFirst
+            ? countries.OrderByDescending(c => c.Id)
+            : countries.OrderBy(c => c.Name);
+
+        return await ordered
             .Select(c => new LookupDto { Id = c.Id, Name = c.Name, UsageCount = _db.Cities.Count(x => x.CountryId == c.Id) + _db.Authors.Count(a => a.CountryId == c.Id) })
             .ToPagedAsync(query);
     }

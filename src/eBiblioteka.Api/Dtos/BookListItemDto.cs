@@ -12,4 +12,9 @@ public class BookListItemDto
     public int AvailableCopies { get; set; }
     public double? AverageRating { get; set; }
     public bool HasCover { get; set; }
+
+    // Zapisi koji vezuju knjigu: dok ih ima, brisanje knjige nije moguće.
+    public int LoanCount { get; set; }
+    public int ReservationCount { get; set; }
+    public int ReviewCount { get; set; }
 }

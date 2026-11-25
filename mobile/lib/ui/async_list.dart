@@ -10,6 +10,7 @@ class AsyncList<T> extends StatefulWidget {
     required this.load,
     required this.itemBuilder,
     this.header,
+    this.sectionOf,
     this.emptyText = 'Nema podataka.',
   });
 
@@ -19,6 +20,9 @@ class AsyncList<T> extends StatefulWidget {
   /// Prikazuje se iznad stavki kad ih ima (npr. objašnjenje ili upozorenje).
   final Widget Function(List<T> items)? header;
   final String emptyText;
+
+  /// Naslov grupe kojoj stavka pripada; ispisuje se iznad prve stavke svake grupe.
+  final String Function(T item)? sectionOf;
 
   @override
   State<AsyncList<T>> createState() => AsyncListState<T>();
@@ -91,7 +95,15 @@ class AsyncListState<T> extends State<AsyncList<T>> {
               padding: const EdgeInsets.only(bottom: 16),
               children: [
                 if (widget.header != null) widget.header!(items),
-                for (final item in items) widget.itemBuilder(context, item, reload),
+                for (var i = 0; i < items.length; i++) ...[
+                  if (widget.sectionOf != null &&
+                      (i == 0 || widget.sectionOf!(items[i]) != widget.sectionOf!(items[i - 1])))
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                      child: Text(widget.sectionOf!(items[i]), style: Theme.of(context).textTheme.titleSmall),
+                    ),
+                  widget.itemBuilder(context, items[i], reload),
+                ],
               ],
             ),
     );

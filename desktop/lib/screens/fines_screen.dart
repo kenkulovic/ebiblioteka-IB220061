@@ -23,9 +23,9 @@ class _FinesScreenState extends State<FinesScreen> {
   Future<void> _payAtCounter(Fine fine) async {
     final ok = await confirm(
       context,
-      title: 'Uplata na šalteru',
-      message: 'Evidentirati uplatu zakasnine ${formatKm(fine.amount)} (${fine.userFullName})?',
-      confirmText: 'Evidentiraj uplatu',
+      title: 'Označi plaćeno',
+      message: 'Evidentirati uplatu zakasnine ${formatKm(fine.amount)} (${fine.userFullName}) na šalteru?',
+      confirmText: 'Označi plaćeno',
     );
     if (!ok || !mounted) return;
 
@@ -81,7 +81,7 @@ class _FinesScreenState extends State<FinesScreen> {
         DataCell(Text(Labels.paymentMethod(f.paymentMethod))),
         DataCell(Row(children: [
           if (f.isUnpaid && !f.hasPendingPayment)
-            TextButton(onPressed: () => _payAtCounter(f), child: const Text('Naplati na šalteru')),
+            TextButton(onPressed: () => _payAtCounter(f), child: const Text('Označi plaćeno')),
           if (f.isUnpaid && f.hasPendingPayment) const Text('Online plaćanje u toku'),
           TextButton(onPressed: () => _payments(f), child: const Text('Uplate')),
         ])),
@@ -159,7 +159,12 @@ class _PaymentsDialogState extends State<_PaymentsDialog> {
                               subtitle: Text(_describe(p)),
                               trailing: p.canRefund
                                   ? FilledButton.tonal(onPressed: () => _refund(p), child: const Text('Vrati uplatu'))
-                                  : null,
+                                  : (p.method == 'Counter' && p.status == 'Completed'
+                                      ? const Tooltip(
+                                          message: 'Uplata na šalteru ne vraća se kroz sistem; povrat je moguć samo za PayPal uplate.',
+                                          child: FilledButton.tonal(onPressed: null, child: Text('Vrati uplatu')),
+                                        )
+                                      : null),
                             ),
                           ),
                       ]),

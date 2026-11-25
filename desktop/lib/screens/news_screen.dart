@@ -23,7 +23,7 @@ class _NewsScreenState extends State<NewsScreen> {
 
   Future<void> _edit(NewsItem? item) async {
     final saved = await showDialog<bool>(context: context, builder: (_) => _NewsDialog(item: item));
-    if (saved == true) _listKey.currentState?.reload();
+    if (saved == true) _listKey.currentState?.load(page: item == null ? 1 : null);
   }
 
   Future<void> _delete(NewsItem item) async {
@@ -125,7 +125,10 @@ class _NewsDialogState extends State<_NewsDialog> {
         await api.updateNews(widget.item!.id, _title.text.trim(), _text.text.trim(),
             imageName: _imageName, imageBytes: _image);
       }
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        showMessage(context, 'Vijest "${_title.text.trim()}" je ${creating ? 'objavljena' : 'sačuvana'}.');
+        Navigator.pop(context, true);
+      }
     } on ApiException catch (e) {
       if (mounted) {
         setState(() {

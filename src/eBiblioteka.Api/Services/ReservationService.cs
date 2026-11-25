@@ -92,7 +92,8 @@ public class ReservationService : IReservationService
         var restriction = await _eligibility.GetRestrictionAsync(userId);
         if (restriction != null)
         {
-            return new ReserveCheckDto { Reason = restriction };
+            var hasUnpaidFine = await _db.Fines.AnyAsync(f => f.UserId == userId && f.Status == FineStatus.Unpaid);
+            return new ReserveCheckDto { Reason = restriction, HasUnpaidFine = hasUnpaidFine };
         }
 
         if (await _db.Loans.AnyAsync(l => l.UserId == userId && l.BookId == bookId && l.Status == LoanStatus.Active))

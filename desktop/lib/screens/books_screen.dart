@@ -46,7 +46,8 @@ class _BooksScreenState extends State<BooksScreen> {
       builder: (_) => BookFormDialog(bookId: book?.id),
     );
     if (saved == true) {
-      _listKey.currentState?.reload();
+      // Nova knjiga je na vrhu prve strane; nakon izmjene ostaje se na istoj strani.
+      _listKey.currentState?.load(page: book == null ? 1 : null);
     }
   }
 
@@ -118,6 +119,7 @@ class _BooksScreenState extends State<BooksScreen> {
         search: search,
         categoryId: _categoryId,
         available: _available,
+        newestFirst: true,
       ),
       rowBuilder: (book, reload) => DataRow(cells: [
         DataCell(ApiImage(url: book.hasCover ? api.bookCoverUrl(book.id) : null)),
@@ -129,7 +131,11 @@ class _BooksScreenState extends State<BooksScreen> {
         DataCell(Text(book.averageRating == null ? '—' : book.averageRating!.toStringAsFixed(1).replaceAll('.', ','))),
         DataCell(Row(children: [
           IconButton(tooltip: 'Izmijeni', onPressed: () => _edit(book), icon: const Icon(Icons.edit)),
-          IconButton(tooltip: 'Obriši', onPressed: () => _delete(book), icon: const Icon(Icons.delete_outline)),
+          IconButton(
+            tooltip: book.deleteBlockedReason ?? 'Obriši',
+            onPressed: book.deleteBlockedReason != null ? null : () => _delete(book),
+            icon: const Icon(Icons.delete_outline),
+          ),
         ])),
       ]),
     );

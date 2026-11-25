@@ -6,9 +6,10 @@ import '../app_state.dart';
 import '../ui/api_image.dart';
 import '../ui/async_list.dart';
 import '../ui/dialogs.dart';
+import 'loan_details_screen.dart';
 import 'paypal_screen.dart';
 
-/// Moje knjige: posudbe (produženje, ocjenjivanje), rezervacije i zakasnine (plaćanje).
+/// Moje knjige: posudbe (master-details), rezervacije i zakasnine (plaćanje).
 class MyLibraryScreen extends StatelessWidget {
   const MyLibraryScreen({super.key, this.initialTab = 0});
 
@@ -34,78 +35,53 @@ class MyLibraryScreen extends StatelessWidget {
 class _LoansTab extends StatelessWidget {
   const _LoansTab();
 
-  Future<void> _extend(BuildContext context, Loan loan, Future<void> Function() reload) async {
-    final ok = await confirm(
-      context,
-      title: 'Produženje posudbe',
-      message: 'Produžiti posudbu knjige "${loan.bookTitle}" za 7 dana? Moguće je samo jedno produženje.',
-      confirmText: 'Produži',
-    );
-    if (!ok || !context.mounted) return;
-
-    final api = context.read<AppState>().api;
-    if (await runAction(context, () => api.extendLoan(loan.id), success: 'Posudba je produžena.')) {
-      await reload();
-    }
-  }
-
-  Future<void> _rate(BuildContext context, Loan loan, Future<void> Function() reload) async {
-    final result = await showDialog<(int, String?)>(context: context, builder: (_) => _RatingDialog(title: loan.bookTitle));
-    if (result == null || !context.mounted) return;
-
-    final api = context.read<AppState>().api;
-    if (await runAction(context, () => api.createReview(loan.id, result.$1, result.$2), success: 'Hvala na ocjeni!')) {
-      await reload();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final api = context.read<AppState>().api;
     final scheme = Theme.of(context).colorScheme;
 
+    // Master dio: lista posudbi; dodir otvara detalje posudbe.
     return AsyncList<Loan>(
       emptyText: 'Nemate posudbi.',
       load: () async => (await api.myLoans(pageSize: 50)).items,
       itemBuilder: (context, loan, reload) => Card(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            ApiImage(url: loan.bookHasCover ? api.bookCoverUrl(loan.bookId) : null, width: 52, height: 74),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(loan.bookTitle, style: Theme.of(context).textTheme.titleSmall),
-                Text('Posuđeno: ${formatDate(loan.loanDate)}', style: Theme.of(context).textTheme.bodySmall),
-                Text(
-                  loan.isActive ? 'Rok povrata: ${formatDate(loan.dueDate)}' : 'Vraćeno: ${formatDate(loan.returnDate)}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  loan.isOverdue
-                      ? 'Kasni ${loan.daysOverdue} dana'
-                      : Labels.loanStatus(loan.status) + (loan.extensionCount > 0 ? ' (produženo)' : ''),
-                  style: TextStyle(
-                    color: loan.isOverdue ? scheme.error : null,
-                    fontWeight: loan.isOverdue ? FontWeight.bold : null,
+        child: InkWell(
+          key: ValueKey('loan-${loan.id}'),
+          onTap: () async {
+            await Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (_) => LoanDetailsScreen(loan: loan)),
+            );
+            await reload();
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              ApiImage(url: loan.bookHasCover ? api.bookCoverUrl(loan.bookId) : null, width: 52, height: 74),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(loan.bookTitle, style: Theme.of(context).textTheme.titleSmall),
+                  Text(
+                    loan.isActive ? 'Rok povrata: ${formatDate(loan.dueDate)}' : 'Vraćeno: ${formatDate(loan.returnDate)}',
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
-                ),
-                Wrap(spacing: 8, children: [
-                  if (loan.isActive && !loan.isOverdue && loan.extensionCount < 1)
-                    OutlinedButton(onPressed: () => _extend(context, loan, reload), child: const Text('Produži')),
-                  if (!loan.isActive && !loan.hasReview)
-                    OutlinedButton.icon(
-                      onPressed: () => _rate(context, loan, reload),
-                      icon: const Icon(Icons.star_outline),
-                      label: const Text('Ocijeni'),
+                  const SizedBox(height: 4),
+                  Text(
+                    loan.isOverdue
+                        ? 'Kasni ${loan.daysOverdue} dana'
+                        : Labels.loanStatus(loan.status) + (loan.extensionCount > 0 ? ' (produženo)' : ''),
+                    style: TextStyle(
+                      color: loan.isOverdue ? scheme.error : null,
+                      fontWeight: loan.isOverdue ? FontWeight.bold : null,
                     ),
-                  if (!loan.isActive && loan.hasReview) const Chip(label: Text('Ocijenjeno')),
+                  ),
                 ]),
-              ]),
-            ),
-          ]),
+              ),
+              const Icon(Icons.chevron_right),
+            ]),
+          ),
         ),
       ),
     );
@@ -129,9 +105,10 @@ class _ReservationsTab extends StatelessWidget {
           title: Text(r.bookTitle),
           subtitle: Text(
             '${Labels.reservationStatus(r.status)} · poslano ${formatDate(r.createdAt)}'
-            '${r.status == 'Confirmed' ? '\nPreuzmite do ${formatDate(r.pickupDeadline)}' : ''}',
+            '${r.status == 'Confirmed' ? '\nPreuzmite do ${formatDate(r.pickupDeadline)}' : ''}'
+            '${r.status == 'Cancelled' && r.cancelReason != null ? '\nRazlog: ${r.cancelReason}' : ''}',
           ),
-          isThreeLine: r.status == 'Confirmed',
+          isThreeLine: r.status == 'Confirmed' || (r.status == 'Cancelled' && r.cancelReason != null),
           trailing: r.isOpen
               ? TextButton(
                   onPressed: () async {
@@ -159,11 +136,8 @@ class _FinesTab extends StatelessWidget {
   const _FinesTab();
 
   Future<void> _pay(BuildContext context, Fine fine, Future<void> Function() reload) async {
-    final paid = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute<bool>(builder: (_) => PayPalScreen(fine: fine)),
-    );
-    if (paid == true && context.mounted) {
+    final paid = await PayPalScreen.pay(context, fine);
+    if (paid && context.mounted) {
       context.read<AppState>().refreshUnread();
     }
     await reload();
@@ -176,7 +150,11 @@ class _FinesTab extends StatelessWidget {
 
     return AsyncList<Fine>(
       emptyText: 'Nemate zakasnina.',
-      load: () async => (await api.myFines()).items,
+      load: () async {
+        final fines = (await api.myFines()).items;
+        return [...fines.where((f) => f.isUnpaid), ...fines.where((f) => !f.isUnpaid)];
+      },
+      sectionOf: (fine) => fine.isUnpaid ? 'Neplaćene' : 'Plaćene i stornirane',
       header: (fines) => fines.any((f) => f.isUnpaid)
           ? Container(
               margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
@@ -197,7 +175,8 @@ class _FinesTab extends StatelessWidget {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(fine.bookTitle, style: Theme.of(context).textTheme.titleSmall),
                 Text('Kašnjenje ${fine.daysLate} dana', style: Theme.of(context).textTheme.bodySmall),
-                Text(formatKm(fine.amount), style: Theme.of(context).textTheme.titleMedium),
+                Text('${formatKm(fine.amount)} (${formatEur(fine.amountEur)})',
+                    style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 2),
                 Text(
                   Labels.fineStatus(fine.status),
@@ -236,55 +215,6 @@ class _FinesTab extends StatelessWidget {
           ]),
         ),
       ),
-    );
-  }
-}
-
-class _RatingDialog extends StatefulWidget {
-  const _RatingDialog({required this.title});
-
-  final String title;
-
-  @override
-  State<_RatingDialog> createState() => _RatingDialogState();
-}
-
-class _RatingDialogState extends State<_RatingDialog> {
-  final _comment = TextEditingController();
-  int _rating = 0;
-
-  @override
-  void dispose() {
-    _comment.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: DialogTitle('Ocijenite: ${widget.title}'),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        RatingStars(rating: _rating.toDouble(), size: 36, onChanged: (v) => setState(() => _rating = v)),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _comment,
-          maxLines: 3,
-          maxLength: 500,
-          decoration: const InputDecoration(labelText: 'Komentar (nije obavezan)', border: OutlineInputBorder()),
-        ),
-      ]),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Otkaži')),
-        FilledButton(
-          onPressed: _rating == 0
-              ? null
-              : () => Navigator.pop(
-                    context,
-                    (_rating, _comment.text.trim().isEmpty ? null : _comment.text.trim()),
-                  ),
-          child: const Text('Pošalji'),
-        ),
-      ],
     );
   }
 }

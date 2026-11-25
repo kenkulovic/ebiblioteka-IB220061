@@ -128,7 +128,10 @@ class BookItem {
         totalCopies = json['totalCopies'] as int,
         availableCopies = json['availableCopies'] as int,
         averageRating = _doubleOrNull(json['averageRating']),
-        hasCover = json['hasCover'] as bool;
+        hasCover = json['hasCover'] as bool,
+        loanCount = json['loanCount'] as int,
+        reservationCount = json['reservationCount'] as int,
+        reviewCount = json['reviewCount'] as int;
 
   final int id;
   final String title;
@@ -140,8 +143,22 @@ class BookItem {
   final int availableCopies;
   final double? averageRating;
   final bool hasCover;
+  final int loanCount;
+  final int reservationCount;
+  final int reviewCount;
 
   String get authorsText => authors.join(', ');
+
+  /// Razlog zbog kojeg se knjiga ne može obrisati, ili null ako se može.
+  String? get deleteBlockedReason {
+    final parts = <String>[
+      if (loanCount > 0) '$loanCount posudbi',
+      if (reservationCount > 0) '$reservationCount rezervacija',
+      if (reviewCount > 0) '$reviewCount recenzija',
+    ];
+    if (parts.isEmpty) return null;
+    return 'Knjiga se ne može obrisati jer za nju postoje: ${parts.join(', ')}.';
+  }
 }
 
 class BookAuthor {
@@ -246,7 +263,10 @@ class Loan {
         bookTitle = json['bookTitle'] as String,
         bookHasCover = json['bookHasCover'] as bool,
         fineId = json['fineId'] as int?,
-        hasReview = json['hasReview'] as bool;
+        fineAmount = _doubleOrNull(json['fineAmount']),
+        fineStatus = json['fineStatus'] as String?,
+        hasReview = json['hasReview'] as bool,
+        extensionBlockedReason = json['extensionBlockedReason'] as String?;
 
   final int id;
   final DateTime loanDate;
@@ -263,7 +283,12 @@ class Loan {
   final String bookTitle;
   final bool bookHasCover;
   final int? fineId;
+  final double? fineAmount;
+  final String? fineStatus;
   final bool hasReview;
+
+  /// Razlog zašto se aktivna posudba ne može produžiti; null kad je produženje moguće.
+  final String? extensionBlockedReason;
 
   bool get isActive => status == 'Active';
 }
@@ -286,6 +311,16 @@ class Reservation {
   final String status;
   final DateTime createdAt;
   final DateTime? pickupDeadline;
+
+  /// Razlog posljednjeg otkazivanja ili odbijanja (null kad rezervacija nije otkazana ili razlog nije unesen).
+  String? get cancelReason {
+    if (status != 'Cancelled') return null;
+    for (final h in history.reversed) {
+      if (h.toStatus == 'Cancelled' && h.reason != null && h.reason!.isNotEmpty) return h.reason;
+    }
+    return null;
+  }
+
   final int userId;
   final String userFullName;
   final String membershipNumber;
@@ -318,6 +353,7 @@ class Fine {
   Fine.fromJson(Map<String, dynamic> json)
       : id = json['id'] as int,
         amount = _double(json['amount']),
+        amountEur = _double(json['amountEur']),
         daysLate = json['daysLate'] as int,
         status = json['status'] as String,
         isPaid = json['isPaid'] as bool,
@@ -335,6 +371,7 @@ class Fine {
 
   final int id;
   final double amount;
+  final double amountEur;
   final int daysLate;
   final String status;
   final bool isPaid;
@@ -609,6 +646,7 @@ class IssueCheck {
         maxActiveLoans = json['maxActiveLoans'] as int,
         unpaidFines = json['unpaidFines'] as int,
         availableCopies = json['availableCopies'] as int,
+        hasConfirmedReservation = json['hasConfirmedReservation'] as bool,
         canIssue = json['canIssue'] as bool,
         problems = (json['problems'] as List<dynamic>).cast<String>();
 
@@ -616,6 +654,7 @@ class IssueCheck {
   final int maxActiveLoans;
   final int unpaidFines;
   final int availableCopies;
+  final bool hasConfirmedReservation;
   final bool canIssue;
   final List<String> problems;
 }
@@ -638,8 +677,10 @@ class ReturnPreview {
 class ReserveCheck {
   ReserveCheck.fromJson(Map<String, dynamic> json)
       : canReserve = json['canReserve'] as bool,
-        reason = json['reason'] as String?;
+        reason = json['reason'] as String?,
+        hasUnpaidFine = json['hasUnpaidFine'] as bool;
 
   final bool canReserve;
   final String? reason;
+  final bool hasUnpaidFine;
 }

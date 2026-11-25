@@ -8,7 +8,9 @@ import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../ui/api_image.dart';
 import '../ui/dialogs.dart';
+import '../ui/quick_add_dialogs.dart';
 import '../ui/remote_picker.dart';
+import 'authors_screen.dart';
 
 /// Dodavanje (bookId == null) i izmjena knjige, zajedno s naslovnicom.
 class BookFormDialog extends StatefulWidget {
@@ -92,6 +94,38 @@ class _BookFormDialogState extends State<BookFormDialog> {
     }
   }
 
+  void _addAuthor(Author author) {
+    if (_authors.every((x) => x.id != author.id)) {
+      setState(() => _authors.add(BookAuthor.fromJson({'id': author.id, 'fullName': author.fullName})));
+    }
+  }
+
+  // Brzo dodavanje: novi zapis se odmah bira u formi, bez napuštanja unosa knjige.
+  Future<void> _createAuthor() async {
+    final created = await showDialog<Author>(context: context, builder: (_) => const AuthorDialog());
+    if (created != null) _addAuthor(created);
+  }
+
+  Future<void> _addCategory() async {
+    final created = await showDialog<Lookup>(context: context, builder: (_) => const QuickAddCategoryDialog());
+    if (created != null && mounted) {
+      setState(() {
+        _categories = [..._categories, created];
+        _categoryId = created.id;
+      });
+    }
+  }
+
+  Future<void> _addPublisher() async {
+    final created = await showDialog<Publisher>(context: context, builder: (_) => const QuickAddPublisherDialog());
+    if (created != null && mounted) {
+      setState(() {
+        _publishers = [..._publishers, created];
+        _publisherId = created.id;
+      });
+    }
+  }
+
   Future<void> _pickCover() async {
     final file = await FilePicker.pickFile(type: FileType.image);
     if (file == null) return;
@@ -138,6 +172,7 @@ class _BookFormDialogState extends State<BookFormDialog> {
       }
 
       if (mounted) {
+        showMessage(context, 'Knjiga "${saved.title}" je sačuvana.');
         Navigator.pop(context, true);
       }
     } on ApiException catch (e) {
@@ -240,20 +275,30 @@ class _BookFormDialogState extends State<BookFormDialog> {
               ],
             ),
             const SizedBox(height: 16),
-            Row(children: [
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(
                 child: DropdownButtonFormField<int>(
+                  key: ValueKey('book-category-$_categoryId-${_categories.length}'),
                   initialValue: _categoryId,
+                  isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Kategorija *', border: OutlineInputBorder()),
                   items: [for (final c in _categories) DropdownMenuItem(value: c.id, child: Text(c.name))],
                   onChanged: (v) => setState(() => _categoryId = v),
                   validator: (v) => v == null ? 'Odaberite kategoriju.' : null,
                 ),
               ),
-              const SizedBox(width: 12),
+              IconButton(
+                key: const ValueKey('book-add-category'),
+                tooltip: 'Nova kategorija',
+                onPressed: _addCategory,
+                icon: const Icon(Icons.add_circle_outline),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: DropdownButtonFormField<int?>(
+                  key: ValueKey('book-publisher-$_publisherId-${_publishers.length}'),
                   initialValue: _publisherId,
+                  isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Izdavač', border: OutlineInputBorder()),
                   items: [
                     const DropdownMenuItem<int?>(value: null, child: Text('—')),
@@ -261,6 +306,12 @@ class _BookFormDialogState extends State<BookFormDialog> {
                   ],
                   onChanged: (v) => setState(() => _publisherId = v),
                 ),
+              ),
+              IconButton(
+                key: const ValueKey('book-add-publisher'),
+                tooltip: 'Novi izdavač',
+                onPressed: _addPublisher,
+                icon: const Icon(Icons.add_circle_outline),
               ),
             ]),
             const SizedBox(height: 16),
@@ -272,16 +323,22 @@ class _BookFormDialogState extends State<BookFormDialog> {
               if (_authors.isEmpty) Text('Nijedan autor nije dodan.', style: TextStyle(color: scheme.outline)),
             ]),
             const SizedBox(height: 8),
-            RemotePicker<Author>(
-              label: 'Dodaj autora',
-              search: (text) async => (await _api.authors(search: text, pageSize: 10)).items,
-              display: (a) => a.fullName,
-              onSelected: (a) {
-                if (_authors.every((x) => x.id != a.id)) {
-                  setState(() => _authors.add(BookAuthor.fromJson({'id': a.id, 'fullName': a.fullName})));
-                }
-              },
-            ),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(
+                child: RemotePicker<Author>(
+                  label: 'Dodaj autora',
+                  search: (text) async => (await _api.authors(search: text, pageSize: 10)).items,
+                  display: (a) => a.fullName,
+                  onSelected: _addAuthor,
+                ),
+              ),
+              IconButton(
+                key: const ValueKey('book-add-author'),
+                tooltip: 'Novi autor',
+                onPressed: _createAuthor,
+                icon: const Icon(Icons.add_circle_outline),
+              ),
+            ]),
             const SizedBox(height: 16),
             TextFormField(
               controller: _description,

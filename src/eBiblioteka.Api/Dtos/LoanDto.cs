@@ -1,3 +1,4 @@
+using eBiblioteka.Api.Constants;
 using eBiblioteka.Api.Data.Enums;
 
 namespace eBiblioteka.Api.Dtos;
@@ -19,5 +20,15 @@ public class LoanDto
     public string BookTitle { get; set; } = string.Empty;
     public bool BookHasCover { get; set; }
     public int? FineId { get; set; }
+    public decimal? FineAmount { get; set; }
+    public FineStatus? FineStatus { get; set; }
     public bool HasReview { get; set; }
+
+    // Drugi član čeka istu knjigu (rezervacija na čekanju ili potvrđena).
+    public bool OtherMemberWaiting { get; set; }
+
+    // Za aktivnu posudbu: razlog zašto se ne može produžiti (null kad je produženje moguće).
+    public string? ExtensionBlockedReason => Status != LoanStatus.Active
+        ? null
+        : LoanExtensionRules.GetBlockedReason(Status, DueDate, ExtensionCount, OtherMemberWaiting, DateTime.UtcNow);
 }

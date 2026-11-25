@@ -18,9 +18,33 @@ class LoansScreen extends StatefulWidget {
 class _LoansScreenState extends State<LoansScreen> {
   final _listKey = GlobalKey<PagedListViewState<Loan>>();
   String? _filter;
+  int? _dueWithinDays;
 
   Future<void> _issue() async {
-    final issued = await showDialog<bool>(context: context, builder: (_) => const _IssueLoanDialog());
+    // Forma se ne otvara dok nisu ispunjeni preduslovi: moraju postojati i knjige i članovi.
+    final api = context.read<AppState>().api;
+    try {
+      final books = await api.books(pageSize: 1);
+      final members = await api.members(pageSize: 1);
+      if (books.totalCount == 0 || members.totalCount == 0) {
+        if (mounted) {
+          showMessage(
+            context,
+            books.totalCount == 0
+                ? 'Izdavanje nije moguće jer u sistemu nema knjiga. Prvo dodajte knjigu.'
+                : 'Izdavanje nije moguće jer u sistemu nema članova. Članovi se registruju u mobilnoj aplikaciji.',
+            error: true,
+          );
+        }
+        return;
+      }
+    } on ApiException catch (e) {
+      if (mounted) showMessage(context, e.message, error: true);
+      return;
+    }
+    if (!mounted) return;
+
+    final issued = await showDialog<bool>(context: context, builder: (_) => const IssueLoanDialog());
     if (issued == true) {
       _listKey.currentState?.reload();
     }
@@ -95,12 +119,30 @@ class _LoansScreenState extends State<LoansScreen> {
             },
           ),
         ),
+        SizedBox(
+          width: 210,
+          child: DropdownButtonFormField<int?>(
+            key: const ValueKey('loan-due-filter'),
+            initialValue: _dueWithinDays,
+            decoration: const InputDecoration(labelText: 'Rok povrata', border: OutlineInputBorder(), isDense: true),
+            items: const [
+              DropdownMenuItem<int?>(value: null, child: Text('Svi')),
+              DropdownMenuItem<int?>(value: 0, child: Text('Ističe danas')),
+              DropdownMenuItem<int?>(value: 3, child: Text('Ističe u 3 dana')),
+              DropdownMenuItem<int?>(value: 7, child: Text('Ističe u 7 dana')),
+            ],
+            onChanged: (v) {
+              setState(() => _dueWithinDays = v);
+              _listKey.currentState?.load(page: 1);
+            },
+          ),
+        ),
       ],
       trailing: [
         FilledButton.icon(onPressed: _issue, icon: const Icon(Icons.add), label: const Text('Izdaj knjigu')),
       ],
       columns: const ['', 'Knjiga', 'Član', 'Posuđeno', 'Rok povrata', 'Vraćeno', 'Status', ''],
-      fetch: (page, search) => api.loans(page: page, search: search, filter: _filter),
+      fetch: (page, search) => api.loans(page: page, search: search, filter: _filter, dueWithinDays: _dueWithinDays),
       rowBuilder: (loan, reload) => DataRow(cells: [
         DataCell(ApiImage(url: loan.bookHasCover ? api.bookCoverUrl(loan.bookId) : null, width: 30, height: 42)),
         DataCell(SizedBox(width: 200, child: Text(loan.bookTitle, overflow: TextOverflow.ellipsis))),
@@ -120,18 +162,22 @@ class _LoansScreenState extends State<LoansScreen> {
 }
 
 /// Izdavanje knjige: preuzimanje potvrđene rezervacije ili direktno izdavanje članu na šalteru.
-class _IssueLoanDialog extends StatefulWidget {
-  const _IssueLoanDialog();
+class IssueLoanDialog extends StatefulWidget {
+  const IssueLoanDialog({super.key, this.reservationId});
+
+  /// Potvrđena rezervacija koja je unaprijed odabrana (akcija "Preuzeto" u rezervacijama).
+  final int? reservationId;
 
   @override
-  State<_IssueLoanDialog> createState() => _IssueLoanDialogState();
+  State<IssueLoanDialog> createState() => _IssueLoanDialogState();
 }
 
-class _IssueLoanDialogState extends State<_IssueLoanDialog> with SingleTickerProviderStateMixin {
+class _IssueLoanDialogState extends State<IssueLoanDialog> with SingleTickerProviderStateMixin {
   late final _tabs = TabController(length: 2, vsync: this);
 
   List<Reservation> _confirmed = [];
   int? _reservationId;
+  IssueCheck? _reservationCheck;
   Member? _member;
   BookItem? _book;
   IssueCheck? _check;
@@ -162,6 +208,7 @@ class _IssueLoanDialogState extends State<_IssueLoanDialog> with SingleTickerPro
           _confirmed = page.items;
           _loading = false;
         });
+        if (widget.reservationId != null) await _selectReservation(widget.reservationId);
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -173,8 +220,26 @@ class _IssueLoanDialogState extends State<_IssueLoanDialog> with SingleTickerPro
     }
   }
 
-  bool get _canSubmit =>
-      _tabs.index == 0 ? _reservationId != null : (_member != null && _book != null && _check?.canIssue == true);
+  bool get _canSubmit => _tabs.index == 0
+      ? _reservationId != null && _reservationCheck?.canIssue == true
+      : (_member != null && _book != null && _check?.canIssue == true);
+
+  /// Odabir rezervacije odmah pokreće provjeru pravila za tog člana i knjigu.
+  Future<void> _selectReservation(int? id) async {
+    final reservation = _confirmed.where((r) => r.id == id).firstOrNull;
+    setState(() {
+      _reservationId = reservation?.id;
+      _reservationCheck = null;
+    });
+    if (reservation == null) return;
+
+    try {
+      final check = await _api.issueCheck(reservation.userId, reservation.bookId);
+      if (mounted && _reservationId == id) setState(() => _reservationCheck = check);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    }
+  }
 
   /// Provjera pravila za odabranog člana i knjigu: prikazuje se prije snimanja.
   Future<void> _runCheck() async {
@@ -257,8 +322,10 @@ class _IssueLoanDialogState extends State<_IssueLoanDialog> with SingleTickerPro
 
     return RadioGroup<int>(
       groupValue: _reservationId,
-      onChanged: (v) => setState(() => _reservationId = v),
+      onChanged: _selectReservation,
       child: ListView(children: [
+        // Provjera pravila za odabranu rezervaciju prikazuje se na vrhu, prije snimanja.
+        if (_reservationCheck != null) _checkPanel(_reservationCheck!),
         for (final r in _confirmed)
           RadioListTile<int>(
             value: r.id,
@@ -282,6 +349,8 @@ class _IssueLoanDialogState extends State<_IssueLoanDialog> with SingleTickerPro
           Text('Aktivne posudbe člana: ${check.activeLoans} od ${check.maxActiveLoans}'),
           Text('Neplaćene zakasnine: ${check.unpaidFines}'),
           Text('Slobodnih primjeraka: ${check.availableCopies}'),
+          if (check.hasConfirmedReservation)
+            const Text('Izdavanje se veže za potvrđenu rezervaciju člana, koja postaje završena.'),
           const SizedBox(height: 6),
           if (check.canIssue)
             const Text('Sva pravila su ispunjena.', style: TextStyle(fontWeight: FontWeight.w600))

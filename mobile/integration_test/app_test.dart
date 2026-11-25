@@ -188,8 +188,8 @@ void main() {
     await tapVisible(tester, find.widgetWithText(FilledButton, 'Rezerviši'));
     await waitFor(tester, find.widgetWithText(FilledButton, 'Pošalji'));
     await tester.tap(find.widgetWithText(FilledButton, 'Pošalji'));
-    await waitFor(tester, find.textContaining('Rezervacija je poslana'));
-    await waitGone(tester, find.textContaining('Rezervacija je poslana'));
+    await waitFor(tester, find.textContaining('Rezervacija knjige "1984" je poslana'));
+    await waitGone(tester, find.textContaining('Rezervacija knjige "1984" je poslana'));
 
     // Ista knjiga ponovo: dugme je onemogućeno uz objašnjenje razloga.
     await waitFor(tester, find.byKey(const ValueKey('reserve-reason')));
@@ -217,23 +217,52 @@ void main() {
     await openLibraryTab(tester, 'Posudbe');
     await waitFor(tester, find.text('Kameni spavač'));
 
-    // Produzenje aktivne posudbe (samo jednom).
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Produži'));
+    // Master-details: dodir na posudbu otvara detalje s datumima i brojem produženja.
+    await tester.tap(find.text('Kameni spavač'));
+    await waitFor(tester, find.text('Detalji posudbe'));
+    expect(find.text('0 od 1'), findsOneWidget);
+
+    // Produženje (samo jednom); zatim je dugme onemogućeno uz razlog.
+    await tapVisible(tester, find.text('Produži za 7 dana'));
     await settle(tester);
     await tester.tap(find.widgetWithText(FilledButton, 'Produži'));
     await waitFor(tester, find.text('Posudba je produžena.'));
-    await waitFor(tester, find.textContaining('(produženo)'));
-    expect(find.widgetWithText(OutlinedButton, 'Produži'), findsNothing);
+    await waitFor(tester, find.text('1 od 1'));
+    await waitFor(tester, find.byKey(const ValueKey('loan-extend-reason')));
+    expect(find.text('Posudba je već jednom produžena.'), findsOneWidget);
 
-    // Ocjenjivanje vracene knjige koja nije ocijenjena.
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Ocijeni'));
+    await goBack(tester);
     await settle(tester);
-    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Pošalji')).onPressed, isNull);
-    await tester.tap(find.byIcon(Icons.star_border).at(3)); // 4 zvjezdice
+    await waitFor(tester, find.textContaining('(produženo)'));
+
+    // Detalji vraćene posudbe: zakasnina i ocjenjivanje.
+    await scrollTo(tester, find.text('Životinjska farma'));
+    await tester.tap(find.text('Životinjska farma'));
+    await waitFor(tester, find.text('4,50 KM (Plaćena)'));
+    await tapVisible(tester, find.text('Ocijeni knjigu'));
+    await settle(tester);
+
+    // Slanje bez zvjezdica: greška ispod kontrole.
+    await tester.tap(find.widgetWithText(FilledButton, 'Pošalji'));
+    await settle(tester);
+    expect(find.text('Odaberite ocjenu od 1 do 5 zvjezdica.'), findsOneWidget);
+
+    Finder emptyStars() =>
+        find.descendant(of: find.byType(AlertDialog), matching: find.byIcon(Icons.star_border));
+    await tester.tap(emptyStars().at(3)); // 4 zvjezdice
     await settle(tester);
     await tester.tap(find.widgetWithText(FilledButton, 'Pošalji'));
     await waitFor(tester, find.text('Hvala na ocjeni!'));
-    await waitFor(tester, find.text('Ocijenjeno'));
+
+    // Ocjena se može naknadno izmijeniti.
+    await waitFor(tester, find.text('Vaša ocjena'));
+    await waitGone(tester, find.text('Hvala na ocjeni!'));
+    await tapVisible(tester, find.text('Izmijeni ocjenu'));
+    await settle(tester);
+    await tester.tap(emptyStars().first); // peta zvjezdica
+    await settle(tester);
+    await tester.tap(find.widgetWithText(FilledButton, 'Sačuvaj'));
+    await waitFor(tester, find.text('Ocjena je izmijenjena.'));
   });
 
   testWidgets('registracija novog clana i odjava', (tester) async {
@@ -331,17 +360,22 @@ void main() {
     await waitFor(tester, find.byKey(const ValueKey('reserve-reason')));
     expect(find.textContaining('neplaćena zakasnina'), findsOneWidget);
     expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Rezerviši')).onPressed, isNull);
+    // Uz razlog ograničenja nudi se poveznica na zakasnine.
+    expect(find.byKey(const ValueKey('reserve-my-fines')), findsOneWidget);
     await goBack(tester);
     await settle(tester);
 
     await openLibraryTab(tester, 'Zakasnine');
     await waitFor(tester, find.textContaining('Dok postoji neplaćena zakasnina'));
-    expect(find.text('8,50 KM'), findsOneWidget);
+    expect(find.text('Neplaćene'), findsOneWidget);
+    expect(find.text('8,50 KM (4,35 EUR)'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(FilledButton, 'Plati putem PayPal-a'));
+    await settle(tester);
+    await tester.tap(find.widgetWithText(FilledButton, 'Nastavi na PayPal'));
     await waitFor(tester, find.text('Iznos: 8,50 KM'));
     // 8,50 KM / 1,95583 = 4,35 EUR (iznos racuna server).
-    expect(find.textContaining('4,35 EUR'), findsOneWidget);
+    expect(find.textContaining('1,95583: 4,35 EUR'), findsOneWidget);
     expect(find.byType(WebViewWidget), findsOneWidget);
 
     // WebView otvara stranicu za odobrenje (lazni PayPal), koja kao i pravi PayPal preusmjerava na
@@ -367,7 +401,7 @@ void main() {
     await waitFor(tester, find.textContaining('čeka vas do'));
     await tester.tap(find.text('Zatvori'));
     await settle(tester);
-    expect(find.text('Označi sve'), findsNothing);
+    expect(find.text('Označi sve pročitanim'), findsNothing);
   });
 
   testWidgets('profil: izmjena podataka', (tester) async {

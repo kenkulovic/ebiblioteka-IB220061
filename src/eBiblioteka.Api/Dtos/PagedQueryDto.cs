@@ -21,4 +21,7 @@ public class PagedQueryDto
     }
 
     public string? Search { get; set; }
+
+    // Za administratorske liste: posljednje dodani zapis na vrhu (inače abecedno).
+    public bool NewestFirst { get; set; }
 }

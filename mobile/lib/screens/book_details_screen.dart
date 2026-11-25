@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../app_state.dart';
 import '../ui/api_image.dart';
 import '../ui/dialogs.dart';
+import 'my_library_screen.dart';
 
 /// Detalji knjige (master-detail): opis, dostupnost, rezervacija, ocjene i slične knjige.
 class BookDetailsScreen extends StatefulWidget {
@@ -107,8 +108,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
       context,
       () => _api.createReservation(book.id),
       success: book.availableCopies > 0
-          ? 'Rezervacija je poslana. Bibliotekar će je potvrditi, a vi ćete dobiti obavijest.'
-          : 'Zahtjev je poslan. Biće obrađen čim se oslobodi primjerak.',
+          ? 'Rezervacija knjige "${book.title}" je poslana. Dobit ćete obavijest kad je bibliotekar potvrdi.'
+          : 'Zahtjev za knjigu "${book.title}" je poslan. Biće obrađen čim se oslobodi primjerak.',
     );
 
     if (!mounted) return;
@@ -190,6 +191,20 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         Padding(
           padding: const EdgeInsets.only(top: 8),
           child: Text(_check!.reason!, key: const ValueKey('reserve-reason'), style: TextStyle(color: scheme.error)),
+        ),
+      // Ograničenje zbog zakasnine vodi direktno na ekran zakasnina.
+      if (_check?.canReserve == false && _check?.hasUnpaidFine == true)
+        TextButton.icon(
+          key: const ValueKey('reserve-my-fines'),
+          onPressed: () async {
+            await Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (_) => const MyLibraryScreen(initialTab: 2)),
+            );
+            await _loadCheck();
+          },
+          icon: const Icon(Icons.receipt_long),
+          label: const Text('Moje zakasnine'),
         ),
       if (book.description != null) ...[
         const SizedBox(height: 20),

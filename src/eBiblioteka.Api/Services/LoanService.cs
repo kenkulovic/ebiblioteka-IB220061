@@ -50,11 +50,6 @@ public class LoanService : ILoanService
                 throw new ConflictException("Preuzeti se može samo potvrđena rezervacija.");
             }
 
-            if (reservation.PickupDeadline != null && reservation.PickupDeadline < DateTime.UtcNow)
-            {
-                throw new ConflictException("Rok za preuzimanje ove rezervacije je istekao.");
-            }
-
             userId = reservation.UserId;
             bookId = reservation.BookId;
         }
@@ -67,6 +62,15 @@ public class LoanService : ILoanService
 
             userId = dto.UserId.Value;
             bookId = dto.BookId.Value;
+
+            // Ako član ima potvrđenu rezervaciju te knjige, izdavanje se veže za nju.
+            reservation = await _db.Reservations.FirstOrDefaultAsync(r =>
+                r.UserId == userId && r.BookId == bookId && r.Status == ReservationStatus.Confirmed);
+        }
+
+        if (reservation?.PickupDeadline != null && reservation.PickupDeadline < DateTime.UtcNow)
+        {
+            throw new ConflictException("Rok za preuzimanje ove rezervacije je istekao.");
         }
 
         var book = await _db.Books.AsNoTracking()
@@ -95,14 +99,13 @@ public class LoanService : ILoanService
 
         if (reservation == null)
         {
-            // Direktno izdavanje: član ne smije imati otvorenu rezervaciju iste knjige
-            // (preuzimanje se tada evidentira kroz rezervaciju), a mora postojati slobodan primjerak.
+            // Direktno izdavanje: zahtjev koji još čeka potvrdu prvo se mora obraditi,
+            // a mora postojati slobodan primjerak.
             if (await _db.Reservations.AnyAsync(r =>
-                    r.UserId == userId && r.BookId == bookId &&
-                    (r.Status == ReservationStatus.Pending || r.Status == ReservationStatus.Confirmed)))
+                    r.UserId == userId && r.BookId == bookId && r.Status == ReservationStatus.Pending))
             {
                 throw new ConflictException(
-                    "Član ima otvorenu rezervaciju ove knjige. Preuzimanje se evidentira kroz rezervaciju.");
+                    "Član ima rezervaciju ove knjige na čekanju. Prvo je potvrdite ili odbijte u rezervacijama.");
             }
 
             var taken = await _db.Loans.CountAsync(l => l.BookId == bookId && l.Status == LoanStatus.Active)
@@ -204,26 +207,15 @@ public class LoanService : ILoanService
             .FirstOrDefaultAsync(l => l.Id == loanId && l.UserId == userId)
             ?? throw new NotFoundException("Posudba nije pronađena.");
 
-        if (loan.Status != LoanStatus.Active)
-        {
-            throw new ConflictException("Produžiti se može samo aktivna posudba.");
-        }
+        var otherMemberWaiting = await _db.Reservations.AnyAsync(r =>
+            r.BookId == loan.BookId && r.UserId != userId &&
+            (r.Status == ReservationStatus.Pending || r.Status == ReservationStatus.Confirmed));
 
-        if (loan.DueDate.Date < DateTime.UtcNow.Date)
+        var blocked = LoanExtensionRules.GetBlockedReason(
+            loan.Status, loan.DueDate, loan.ExtensionCount, otherMemberWaiting, DateTime.UtcNow);
+        if (blocked != null)
         {
-            throw new ConflictException("Posudba kasni i ne može se produžiti.");
-        }
-
-        if (loan.ExtensionCount >= LibraryRules.MaxExtensions)
-        {
-            throw new ConflictException("Posudba je već jednom produžena.");
-        }
-
-        if (await _db.Reservations.AnyAsync(r =>
-                r.BookId == loan.BookId && r.UserId != userId &&
-                (r.Status == ReservationStatus.Pending || r.Status == ReservationStatus.Confirmed)))
-        {
-            throw new ConflictException("Posudba se ne može produžiti jer drugi član čeka ovu knjigu.");
+            throw new ConflictException(blocked);
         }
 
         loan.DueDate = loan.DueDate.AddDays(LibraryRules.ExtensionDays);
@@ -273,14 +265,25 @@ public class LoanService : ILoanService
             problems.Add("Član već ima ovu knjigu posuđenu.");
         }
 
-        if (await _db.Reservations.AnyAsync(r =>
-                r.UserId == userId && r.BookId == bookId &&
-                (r.Status == ReservationStatus.Pending || r.Status == ReservationStatus.Confirmed)))
+        var openReservation = await _db.Reservations.AsNoTracking()
+            .Where(r => r.UserId == userId && r.BookId == bookId &&
+                        (r.Status == ReservationStatus.Pending || r.Status == ReservationStatus.Confirmed))
+            .Select(r => new { r.Status, r.PickupDeadline })
+            .FirstOrDefaultAsync();
+        var hasConfirmed = openReservation?.Status == ReservationStatus.Confirmed;
+
+        if (openReservation?.Status == ReservationStatus.Pending)
         {
-            problems.Add("Član ima otvorenu rezervaciju ove knjige. Preuzimanje se evidentira kroz rezervaciju.");
+            problems.Add("Član ima rezervaciju ove knjige na čekanju. Prvo je potvrdite ili odbijte u rezervacijama.");
         }
 
-        if (available == 0)
+        if (hasConfirmed && openReservation!.PickupDeadline < DateTime.UtcNow)
+        {
+            problems.Add("Rok za preuzimanje ove rezervacije je istekao.");
+        }
+
+        // Potvrđena rezervacija već drži primjerak za ovog člana.
+        if (available == 0 && !hasConfirmed)
         {
             problems.Add("Nema slobodnih primjeraka ove knjige.");
         }
@@ -291,6 +294,7 @@ public class LoanService : ILoanService
             MaxActiveLoans = LibraryRules.MaxActiveLoans,
             UnpaidFines = unpaid,
             AvailableCopies = available,
+            HasConfirmedReservation = hasConfirmed,
             CanIssue = problems.Count == 0,
             Problems = problems
         };
@@ -379,6 +383,13 @@ public class LoanService : ILoanService
             };
         }
 
+        if (query.DueWithinDays.HasValue)
+        {
+            // Aktivne posudbe kojima rok povrata ističe danas ili u narednih N dana.
+            var lastDay = today.AddDays(query.DueWithinDays.Value);
+            loans = loans.Where(l => l.Status == LoanStatus.Active && l.DueDate.Date >= today && l.DueDate.Date <= lastDay);
+        }
+
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var search = query.Search.Trim();
@@ -410,7 +421,12 @@ public class LoanService : ILoanService
             BookTitle = l.Book.Title,
             BookHasCover = l.Book.CoverImage != null,
             FineId = _db.Fines.Where(f => f.LoanId == l.Id).Select(f => (int?)f.Id).FirstOrDefault(),
-            HasReview = _db.Reviews.Any(r => r.LoanId == l.Id)
+            FineAmount = _db.Fines.Where(f => f.LoanId == l.Id).Select(f => (decimal?)f.Amount).FirstOrDefault(),
+            FineStatus = _db.Fines.Where(f => f.LoanId == l.Id).Select(f => (FineStatus?)f.Status).FirstOrDefault(),
+            HasReview = _db.Reviews.Any(r => r.LoanId == l.Id),
+            OtherMemberWaiting = _db.Reservations.Any(r =>
+                r.BookId == l.BookId && r.UserId != l.UserId &&
+                (r.Status == ReservationStatus.Pending || r.Status == ReservationStatus.Confirmed))
         });
 
     private async Task<LoanDto> GetDtoAsync(int id) =>

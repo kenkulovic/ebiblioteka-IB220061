@@ -6,6 +6,7 @@ import '../app_state.dart';
 import '../ui/api_image.dart';
 import '../ui/dialogs.dart';
 import '../ui/paged_list_view.dart';
+import 'loans_screen.dart';
 
 class ReservationsScreen extends StatefulWidget {
   const ReservationsScreen({super.key});
@@ -42,18 +43,13 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
     if (ok) _listKey.currentState?.reload();
   }
 
+  // "Preuzeto" vodi na formu izdavanja s odabranom rezervacijom.
   Future<void> _pickup(Reservation r) async {
-    final yes = await confirm(
-      context,
-      title: 'Preuzimanje knjige',
-      message: 'Član ${r.userFullName} preuzima "${r.bookTitle}". Kreirati posudbu?',
-      confirmText: 'Kreiraj posudbu',
-    );
-    if (!yes || !mounted) return;
+    final issued = await showDialog<bool>(context: context, builder: (_) => IssueLoanDialog(reservationId: r.id));
+    if (issued != true || !mounted) return;
 
-    final ok = await runAction(context, () => _api.issueLoan(reservationId: r.id),
-        success: 'Posudba je kreirana, rezervacija je završena.');
-    if (ok) _listKey.currentState?.reload();
+    showMessage(context, 'Knjiga "${r.bookTitle}" je izdata, rezervacija je završena.');
+    _listKey.currentState?.reload();
   }
 
   Future<void> _details(Reservation r) async {

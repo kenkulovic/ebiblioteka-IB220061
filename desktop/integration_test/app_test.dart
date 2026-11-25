@@ -90,12 +90,11 @@ void main() {
     await startApp(tester);
     await login(tester, 'desktop', 'test');
 
-    // Knjige
-    await waitFor(tester, find.text('Derviš i smrt'));
-    expect(find.text('Ivo Andrić'), findsWidgets);
+    // Knjige (najnovije dodane su na vrhu)
+    await waitFor(tester, find.text('Ukupno: 17'));
 
     await openSection(tester, 'Autori');
-    await waitFor(tester, find.text('Ivo Andrić'));
+    await waitFor(tester, find.text('Ukupno: 12'));
 
     await openSection(tester, 'Članovi');
     await waitFor(tester, find.text('Lejla Hodžić'));
@@ -124,7 +123,7 @@ void main() {
   testWidgets('pretraga, filter i straničenje knjiga', (tester) async {
     await startApp(tester);
     await login(tester, 'desktop', 'test');
-    await waitFor(tester, find.text('Derviš i smrt'));
+    await waitFor(tester, find.text('Ukupno: 17'));
 
     // Straničenje: 17 knjiga po 10 = 2 strane.
     expect(find.text('Strana 1 / 2'), findsOneWidget);
@@ -142,7 +141,7 @@ void main() {
   testWidgets('greske servera se prikazuju s razlogom', (tester) async {
     await startApp(tester);
     await login(tester, 'desktop', 'test');
-    await waitFor(tester, find.text('Derviš i smrt'));
+    await waitFor(tester, find.text('Ukupno: 17'));
 
     // Rezervacija bez slobodnog primjerka: server odbija potvrdu.
     await openSection(tester, 'Rezervacije');
@@ -164,7 +163,7 @@ void main() {
     final categoryName = 'Testna kategorija ${DateTime.now().millisecondsSinceEpoch % 100000}';
     await startApp(tester);
     await login(tester, 'desktop', 'test');
-    await waitFor(tester, find.text('Derviš i smrt'));
+    await waitFor(tester, find.text('Ukupno: 17'));
 
     await openSection(tester, 'Šifarnici');
     await tester.tap(find.text('Kategorije'));
@@ -204,7 +203,7 @@ void main() {
     final bookTitle = 'Testna knjiga ${DateTime.now().millisecondsSinceEpoch % 100000}';
     await startApp(tester);
     await login(tester, 'desktop', 'test');
-    await waitFor(tester, find.text('Derviš i smrt'));
+    await waitFor(tester, find.text('Ukupno: 17'));
 
     await tester.tap(find.text('Nova knjiga'));
     await waitFor(tester, find.text('Nova knjiga').last);
@@ -236,6 +235,10 @@ void main() {
     await tester.tap(find.text('Sačuvaj'));
     await waitGone(tester, find.text('Sačuvaj'));
 
+    // Poruka o uspjehu s nazivom, a nova knjiga je na vrhu liste.
+    await waitFor(tester, find.text('Knjiga "$bookTitle" je sačuvana.'));
+    await waitFor(tester, find.descendant(of: find.byType(DataTable), matching: find.text(bookTitle)));
+
     // Pretraga: nova knjiga je u katalogu.
     await tester.enterText(find.byKey(const ValueKey('list-search')), bookTitle);
     await tester.tap(find.text('Traži'));
@@ -252,7 +255,7 @@ void main() {
   testWidgets('blokiranje i odblokiranje clana', (tester) async {
     await startApp(tester);
     await login(tester, 'desktop', 'test');
-    await waitFor(tester, find.text('Derviš i smrt'));
+    await waitFor(tester, find.text('Ukupno: 17'));
 
     await openSection(tester, 'Članovi');
     await waitFor(tester, find.text('Tarik Delić'));
@@ -290,7 +293,7 @@ void main() {
   testWidgets('detalji clana i pregled povrata', (tester) async {
     await startApp(tester);
     await login(tester, 'desktop', 'test');
-    await waitFor(tester, find.text('Derviš i smrt'));
+    await waitFor(tester, find.text('Ukupno: 17'));
 
     // Detalji člana: lični podaci i historija po karticama.
     await openSection(tester, 'Članovi');
@@ -317,10 +320,58 @@ void main() {
     expect(find.textContaining('Datum povrata:'), findsNothing);
   });
 
+  testWidgets('knjiga u upotrebi, brzo dodavanje iz forme, rok povrata i preuzimanje rezervacije', (tester) async {
+    await startApp(tester);
+    await login(tester, 'desktop', 'test');
+    await waitFor(tester, find.text('Nova knjiga'));
+
+    // Knjiga s posudbama: brisanje je onemogućeno uz razlog.
+    await tester.enterText(find.byKey(const ValueKey('list-search')), 'Derviš i smrt');
+    await tester.tap(find.text('Traži'));
+    await waitFor(tester, find.text('Ukupno: 1'));
+    expect(
+      find.byWidgetPredicate((w) =>
+          w is IconButton && w.onPressed == null && (w.tooltip ?? '').contains('Knjiga se ne može obrisati')),
+      findsOneWidget,
+    );
+
+    // Forma knjige: autor, kategorija i izdavač mogu se dodati iz modala.
+    await tester.tap(find.text('Nova knjiga'));
+    await waitFor(tester, find.byKey(const ValueKey('book-add-category')));
+    for (final (key, title) in [
+      ('book-add-category', 'Nova kategorija'),
+      ('book-add-publisher', 'Novi izdavač'),
+      ('book-add-author', 'Novi autor'),
+    ]) {
+      await tester.ensureVisible(find.byKey(ValueKey(key)));
+      await tester.tap(find.byKey(ValueKey(key)));
+      await settle(tester);
+      expect(find.text(title), findsWidgets);
+      await tester.tap(find.widgetWithText(TextButton, 'Otkaži').last);
+      await settle(tester);
+    }
+    await tester.tap(find.widgetWithText(TextButton, 'Otkaži'));
+    await settle(tester);
+
+    // Filter posudbi po roku povrata.
+    await openSection(tester, 'Posudbe');
+    await waitFor(tester, find.byKey(const ValueKey('loan-due-filter')));
+
+    // "Preuzeto" vodi na formu izdavanja s odabranom rezervacijom i provjerom pravila.
+    await openSection(tester, 'Rezervacije');
+    await waitFor(tester, find.widgetWithText(TextButton, 'Preuzeto'));
+    await tester.tap(find.widgetWithText(TextButton, 'Preuzeto').first);
+    await waitFor(tester, find.byKey(const ValueKey('issue-check')));
+    expect(find.text('Izdavanje knjige'), findsOneWidget);
+    expect(find.textContaining('potvrđenu rezervaciju'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Otkaži').last);
+    await settle(tester);
+  });
+
   testWidgets('izvještaji: prikaz zbirnih podataka', (tester) async {
     await startApp(tester);
     await login(tester, 'desktop', 'test');
-    await waitFor(tester, find.text('Derviš i smrt'));
+    await waitFor(tester, find.text('Ukupno: 17'));
 
     await openSection(tester, 'Izvještaji');
     await waitFor(tester, find.text('Izvještaj o posudbama'));

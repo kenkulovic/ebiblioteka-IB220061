@@ -19,7 +19,8 @@ class RecommendationsScreen extends StatelessWidget {
       body: AsyncList<Recommendation>(
         emptyText: 'Za sada nema preporuka.',
         load: () => api.recommendations(count: 5),
-        itemBuilder: (context, recommendation, reload) => RecommendationTile(recommendation: recommendation),
+        itemBuilder: (context, recommendation, reload) =>
+            RecommendationTile(recommendation: recommendation, showDetailsButton: true),
       ),
     );
   }

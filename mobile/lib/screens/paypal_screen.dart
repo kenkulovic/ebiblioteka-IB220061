@@ -15,6 +15,20 @@ class PayPalScreen extends StatefulWidget {
 
   final Fine fine;
 
+  /// Potvrda prije plaćanja, zatim ekran plaćanja. Vraća true ako je zakasnina plaćena.
+  static Future<bool> pay(BuildContext context, Fine fine) async {
+    final yes = await confirm(
+      context,
+      title: 'Plaćanje zakasnine',
+      message: 'Platiti zakasninu od ${formatKm(fine.amount)} (${formatEur(fine.amountEur)}) putem PayPal-a?',
+      confirmText: 'Nastavi na PayPal',
+    );
+    if (!yes || !context.mounted) return false;
+
+    final paid = await Navigator.push<bool>(context, MaterialPageRoute<bool>(builder: (_) => PayPalScreen(fine: fine)));
+    return paid == true;
+  }
+
   @override
   State<PayPalScreen> createState() => _PayPalScreenState();
 }
@@ -141,6 +155,10 @@ class _PayPalScreenState extends State<PayPalScreen> {
         appBar: AppBar(
           title: const Text('Plaćanje zakasnine'),
           leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: _back),
+          actions: [
+            if (_stage == _Stage.starting || _stage == _Stage.approving)
+              TextButton(onPressed: _back, child: const Text('Odustani')),
+          ],
         ),
         body: _content(),
       ),
@@ -162,7 +180,7 @@ class _PayPalScreenState extends State<PayPalScreen> {
               Text(_error ?? 'Plaćanje nije uspjelo.', textAlign: TextAlign.center),
               const SizedBox(height: 16),
               FilledButton(onPressed: _start, child: const Text('Pokušaj ponovo')),
-              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Zatvori')),
+              TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Odustani')),
             ]),
           ),
         );

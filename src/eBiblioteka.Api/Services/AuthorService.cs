@@ -29,7 +29,11 @@ public class AuthorService : IAuthorService
                 (a.FirstName + " " + a.LastName).Contains(search));
         }
 
-        return await ProjectToDto(authors.OrderBy(a => a.LastName).ThenBy(a => a.FirstName))
+        var ordered = query.NewestFirst
+            ? authors.OrderByDescending(a => a.Id)
+            : authors.OrderBy(a => a.LastName).ThenBy(a => a.FirstName);
+
+        return await ProjectToDto(ordered)
             .ToPagedAsync(query);
     }
 

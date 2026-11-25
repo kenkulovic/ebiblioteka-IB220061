@@ -89,7 +89,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       appBar: AppBar(
         title: const Text('Obavijesti'),
         actions: [
-          if (hasUnread) TextButton(onPressed: _markAll, child: const Text('Označi sve')),
+          if (hasUnread) TextButton(onPressed: _markAll, child: const Text('Označi sve pročitanim')),
         ],
       ),
       body: _body(),

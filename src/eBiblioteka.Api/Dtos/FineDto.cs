@@ -1,3 +1,4 @@
+using eBiblioteka.Api.Constants;
 using eBiblioteka.Api.Data.Enums;
 
 namespace eBiblioteka.Api.Dtos;
@@ -6,6 +7,8 @@ public class FineDto
 {
     public int Id { get; set; }
     public decimal Amount { get; set; }
+    // Iznos koji bi PayPal naplatio (fiksni kurs).
+    public decimal AmountEur => Math.Round(Amount / LibraryRules.KmPerEur, 2, MidpointRounding.AwayFromZero);
     public int DaysLate { get; set; }
     public FineStatus Status { get; set; }
     public bool IsPaid => Status == FineStatus.Paid;

@@ -51,7 +51,9 @@ public class BookService : IBookService
                 _db.Reservations.Count(r => r.BookId == b.Id && r.Status == ReservationStatus.Confirmed)) == wantAvailable);
         }
 
-        return await ProjectToListItem(books.OrderBy(b => b.Title)).ToPagedAsync(query);
+        var ordered = query.NewestFirst ? books.OrderByDescending(b => b.Id) : books.OrderBy(b => b.Title);
+
+        return await ProjectToListItem(ordered).ToPagedAsync(query);
     }
 
     public async Task<List<BookListItemDto>> GetListItemsAsync(IReadOnlyCollection<int> ids)
@@ -77,7 +79,10 @@ public class BookService : IBookService
             AverageRating = _db.Reviews
                 .Where(r => r.BookId == b.Id)
                 .Average(r => (double?)r.Rating),
-            HasCover = b.CoverImage != null
+            HasCover = b.CoverImage != null,
+            LoanCount = _db.Loans.Count(l => l.BookId == b.Id),
+            ReservationCount = _db.Reservations.Count(r => r.BookId == b.Id),
+            ReviewCount = _db.Reviews.Count(r => r.BookId == b.Id)
         });
 
     public async Task<BookDetailsDto> GetByIdAsync(int id)

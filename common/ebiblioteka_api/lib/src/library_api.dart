@@ -9,6 +9,8 @@ class LibraryApi {
 
   final ApiClient client;
 
+  Map<String, dynamic> _newest(bool newestFirst) => {'newestFirst': newestFirst ? true : null};
+
   Future<PagedResult<T>> _page<T>(
     String path,
     T Function(Map<String, dynamic>) parse, {
@@ -75,18 +77,25 @@ class LibraryApi {
   // ------------------------------------------------------------- Sifarnici
 
   /// [kind] je "countries" ili "categories".
-  Future<PagedResult<Lookup>> lookups(String kind, {int page = 1, int pageSize = 10, String? search}) =>
-      _page('/api/$kind', Lookup.fromJson, page: page, pageSize: pageSize, search: search);
+  Future<PagedResult<Lookup>> lookups(String kind,
+          {int page = 1, int pageSize = 10, String? search, bool newestFirst = false}) =>
+      _page('/api/$kind', Lookup.fromJson,
+          page: page, pageSize: pageSize, search: search, extra: _newest(newestFirst));
 
-  Future<void> createLookup(String kind, String name) => client.post('/api/$kind', body: {'name': name});
+  Future<Lookup> createLookup(String kind, String name) async =>
+      Lookup.fromJson(await client.post('/api/$kind', body: {'name': name}) as Map<String, dynamic>);
 
   Future<void> updateLookup(String kind, int id, String name) => client.put('/api/$kind/$id', body: {'name': name});
 
   Future<void> deleteLookup(String kind, int id) => client.delete('/api/$kind/$id');
 
-  Future<PagedResult<City>> cities({int page = 1, int pageSize = 10, String? search, int? countryId}) =>
+  Future<PagedResult<City>> cities(
+          {int page = 1, int pageSize = 10, String? search, int? countryId, bool newestFirst = false}) =>
       _page('/api/cities', City.fromJson,
-          page: page, pageSize: pageSize, search: search, extra: {'countryId': countryId});
+          page: page,
+          pageSize: pageSize,
+          search: search,
+          extra: {'countryId': countryId, ..._newest(newestFirst)});
 
   Future<void> createCity(String name, int countryId) =>
       client.post('/api/cities', body: {'name': name, 'countryId': countryId});
@@ -96,11 +105,13 @@ class LibraryApi {
 
   Future<void> deleteCity(int id) => client.delete('/api/cities/$id');
 
-  Future<PagedResult<Publisher>> publishers({int page = 1, int pageSize = 10, String? search}) =>
-      _page('/api/publishers', Publisher.fromJson, page: page, pageSize: pageSize, search: search);
+  Future<PagedResult<Publisher>> publishers(
+          {int page = 1, int pageSize = 10, String? search, bool newestFirst = false}) =>
+      _page('/api/publishers', Publisher.fromJson,
+          page: page, pageSize: pageSize, search: search, extra: _newest(newestFirst));
 
-  Future<void> createPublisher(String name, int cityId) =>
-      client.post('/api/publishers', body: {'name': name, 'cityId': cityId});
+  Future<Publisher> createPublisher(String name, int cityId) async => Publisher.fromJson(
+      await client.post('/api/publishers', body: {'name': name, 'cityId': cityId}) as Map<String, dynamic>);
 
   Future<void> updatePublisher(int id, String name, int cityId) =>
       client.put('/api/publishers/$id', body: {'name': name, 'cityId': cityId});
@@ -109,8 +120,9 @@ class LibraryApi {
 
   // ----------------------------------------------------------------- Autori
 
-  Future<PagedResult<Author>> authors({int page = 1, int pageSize = 10, String? search}) =>
-      _page('/api/authors', Author.fromJson, page: page, pageSize: pageSize, search: search);
+  Future<PagedResult<Author>> authors({int page = 1, int pageSize = 10, String? search, bool newestFirst = false}) =>
+      _page('/api/authors', Author.fromJson,
+          page: page, pageSize: pageSize, search: search, extra: _newest(newestFirst));
 
   Map<String, dynamic> _authorBody(String firstName, String lastName, String? biography, int countryId) => {
         'firstName': firstName,
@@ -119,8 +131,9 @@ class LibraryApi {
         'countryId': countryId,
       };
 
-  Future<void> createAuthor(String firstName, String lastName, String? biography, int countryId) =>
-      client.post('/api/authors', body: _authorBody(firstName, lastName, biography, countryId));
+  Future<Author> createAuthor(String firstName, String lastName, String? biography, int countryId) async =>
+      Author.fromJson(await client.post('/api/authors',
+          body: _authorBody(firstName, lastName, biography, countryId)) as Map<String, dynamic>);
 
   Future<void> updateAuthor(int id, String firstName, String lastName, String? biography, int countryId) =>
       client.put('/api/authors/$id', body: _authorBody(firstName, lastName, biography, countryId));
@@ -136,6 +149,7 @@ class LibraryApi {
     int? categoryId,
     int? authorId,
     bool? available,
+    bool newestFirst = false,
   }) =>
       _page('/api/books', BookItem.fromJson,
           page: page,
@@ -145,6 +159,7 @@ class LibraryApi {
             'categoryId': categoryId,
             'authorId': authorId,
             'available': available,
+            ..._newest(newestFirst),
           });
 
   Future<BookDetails> book(int id) async =>
@@ -277,9 +292,12 @@ class LibraryApi {
           body: {'reservationId': reservationId, 'userId': userId, 'bookId': bookId}) as Map<String, dynamic>);
 
   Future<PagedResult<Loan>> loans(
-          {int page = 1, int pageSize = 10, String? search, String? filter, int? userId}) =>
+          {int page = 1, int pageSize = 10, String? search, String? filter, int? userId, int? dueWithinDays}) =>
       _page('/api/loans', Loan.fromJson,
-          page: page, pageSize: pageSize, search: search, extra: {'filter': filter, 'userId': userId});
+          page: page,
+          pageSize: pageSize,
+          search: search,
+          extra: {'filter': filter, 'userId': userId, 'dueWithinDays': dueWithinDays});
 
   Future<IssueCheck> issueCheck(int userId, int bookId) async => IssueCheck.fromJson(
       await client.get('/api/loans/issue-check', query: {'userId': userId, 'bookId': bookId}) as Map<String, dynamic>);
@@ -331,6 +349,9 @@ class LibraryApi {
   Future<Review> createReview(int loanId, int rating, String? comment) async =>
       Review.fromJson(await client.post('/api/reviews',
           body: {'loanId': loanId, 'rating': rating, 'comment': comment}) as Map<String, dynamic>);
+
+  Future<Review> updateReview(int reviewId, int rating, String? comment) async => Review.fromJson(
+      await client.put('/api/reviews/$reviewId', body: {'rating': rating, 'comment': comment}) as Map<String, dynamic>);
 
   Future<PagedResult<Review>> bookReviews(int bookId, {int page = 1, int pageSize = 10}) =>
       _page('/api/books/$bookId/reviews', Review.fromJson, page: page, pageSize: pageSize);

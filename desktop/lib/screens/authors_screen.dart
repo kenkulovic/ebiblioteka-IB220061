@@ -17,9 +17,9 @@ class _AuthorsScreenState extends State<AuthorsScreen> {
   final _listKey = GlobalKey<PagedListViewState<Author>>();
 
   Future<void> _edit(Author? author) async {
-    final saved = await showDialog<bool>(context: context, builder: (_) => _AuthorDialog(author: author));
-    if (saved == true) {
-      _listKey.currentState?.reload();
+    final saved = await showDialog<Author>(context: context, builder: (_) => AuthorDialog(author: author));
+    if (saved != null) {
+      _listKey.currentState?.load(page: author == null ? 1 : null);
     }
   }
 
@@ -50,7 +50,7 @@ class _AuthorsScreenState extends State<AuthorsScreen> {
         FilledButton.icon(onPressed: () => _edit(null), icon: const Icon(Icons.add), label: const Text('Novi autor')),
       ],
       columns: const ['Ime i prezime', 'Država', 'Knjiga u katalogu', 'Biografija', ''],
-      fetch: (page, search) => api.authors(page: page, search: search),
+      fetch: (page, search) => api.authors(page: page, search: search, newestFirst: true),
       rowBuilder: (author, reload) => DataRow(cells: [
         DataCell(Text(author.fullName)),
         DataCell(Text(author.countryName)),
@@ -71,16 +71,16 @@ class _AuthorsScreenState extends State<AuthorsScreen> {
   }
 }
 
-class _AuthorDialog extends StatefulWidget {
-  const _AuthorDialog({this.author});
+class AuthorDialog extends StatefulWidget {
+  const AuthorDialog({super.key, this.author});
 
   final Author? author;
 
   @override
-  State<_AuthorDialog> createState() => _AuthorDialogState();
+  State<AuthorDialog> createState() => _AuthorDialogState();
 }
 
-class _AuthorDialogState extends State<_AuthorDialog> {
+class _AuthorDialogState extends State<AuthorDialog> {
   final _formKey = GlobalKey<FormState>();
   late final _first = TextEditingController(text: widget.author?.firstName);
   late final _last = TextEditingController(text: widget.author?.lastName);
@@ -138,12 +138,17 @@ class _AuthorDialogState extends State<_AuthorDialog> {
     final bio = _bio.text.trim().isEmpty ? null : _bio.text.trim();
 
     try {
+      final Author saved;
       if (widget.author == null) {
-        await api.createAuthor(_first.text.trim(), _last.text.trim(), bio, _countryId!);
+        saved = await api.createAuthor(_first.text.trim(), _last.text.trim(), bio, _countryId!);
       } else {
         await api.updateAuthor(widget.author!.id, _first.text.trim(), _last.text.trim(), bio, _countryId!);
+        saved = widget.author!;
       }
-      if (mounted) Navigator.pop(context, true);
+      if (mounted) {
+        showMessage(context, 'Autor "${_first.text.trim()} ${_last.text.trim()}" je sačuvan.');
+        Navigator.pop(context, saved);
+      }
     } on ApiException catch (e) {
       if (mounted) {
         setState(() {
@@ -200,7 +205,7 @@ class _AuthorDialogState extends State<_AuthorDialog> {
               ),
       ),
       actions: [
-        TextButton(onPressed: _saving ? null : () => Navigator.pop(context, false), child: const Text('Otkaži')),
+        TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Otkaži')),
         FilledButton(onPressed: _saving || _loading ? null : _save, child: const Text('Sačuvaj')),
       ],
     );

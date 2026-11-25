@@ -7,6 +7,8 @@ public class IssueCheckDto
     public int MaxActiveLoans { get; set; }
     public int UnpaidFines { get; set; }
     public int AvailableCopies { get; set; }
+    // Izdavanje će biti vezano za potvrđenu rezervaciju člana.
+    public bool HasConfirmedReservation { get; set; }
     public bool CanIssue { get; set; }
     public List<string> Problems { get; set; } = new();
 }
@@ -25,4 +27,6 @@ public class ReserveCheckDto
 {
     public bool CanReserve { get; set; }
     public string? Reason { get; set; }
+    // Aplikacija tada uz razlog nudi poveznicu na zakasnine.
+    public bool HasUnpaidFine { get; set; }
 }
